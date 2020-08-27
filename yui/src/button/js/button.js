@@ -8,6 +8,14 @@ ELEMENTS = [],
 
 THUMB = [],
 
+vishualLayout = '<div id="lmsbuilder-visual" >'+
+					'<div class="visual-tab">'+
+						'<div id="addelement">'+
+							'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i></a>'+
+						'</div>'+
+					'</div>'+
+				'</div>';
+
 builder;
 
 Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
@@ -48,7 +56,7 @@ Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.Ed
 			ELEMENTS[element] = elem_obj
 		}		
 		
-		return THUMB.join(" "); 
+		return 
 	}	
 
 }, {
