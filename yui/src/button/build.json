@@ -3,7 +3,9 @@
   "builds": {
     "moodle-atto_lmsace-button": {
       "jsfiles": [
-        "button.js"
+        "button.js",
+        "row.js",
+        "column.js"
       ]
     }
   }

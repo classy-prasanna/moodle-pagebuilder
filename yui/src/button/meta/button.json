@@ -1,7 +1,7 @@
 {
     "moodle-atto_lmsace-button": {
         "requires": [
-            "moodle-editor_atto-plugin"
+            "moodle-editor_atto-plugin"           
         ]
     }
 }

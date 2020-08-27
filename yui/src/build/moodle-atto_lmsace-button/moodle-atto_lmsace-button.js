@@ -27,8 +27,15 @@ Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.Ed
 		});
 	},
 
+	
 	build_dialogue_body: function() {
-		return 'test';
+		return added_element_visual();		
+	},
+
+	// Visual look of elements added in page.
+	added_element_visual: function() {
+
+		return visual_output;
 	}
 
 });
