@@ -8,21 +8,33 @@ ELEMENTS = [],
 
 THUMB = [],
 
-vishualLayout = '<div id="lmsbuilder-visual" >'+
+elements_list_output = '',
+
+CSS_ATTR = {
+	ELEMENTTHUMB: 'element-thumb-parent',
+	// ELEMENTTHUMBTITLE: 'element-thumb-title',
+},
+
+SELECTORS = {
+	ADDELEMENT: '#addelement a',
+	ELEMENTTHUMB: '.' + CSS_ATTR.ELEMENTTHUMB,
+},
+
+visualLayout = '<div id="lmsbuilder-visual" >'+
 					'<div class="visual-tab">'+
 						'<div id="addelement">'+
 							'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i></a>'+
 						'</div>'+
 					'</div>'+
-				'</div>';
+				'</div>',
 
 builder;
 
 Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
-	
+
 
 	initializer: function() {
-		
+
 		this.addButton({
 
             title: 'pluginname',
@@ -32,32 +44,66 @@ Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.Ed
         });
 	},
 
-	show_builder: function() {		
-		builder = this.getDialogue({
+	show_builder: function() {
+		this._dialogue = null;
+		var builder = this.getDialogue({
 			headerContent: 'LMSACE Builder', // M.util.get_string('builderheading', component).
 			width: '80%',
 			bodyContent: this.build_dialogue_body()
-		});
+		}, true);
 
 		builder.show();
 	},
 
 	build_dialogue_body: function() {
-
+		var funcobj = this;
 		var elements = this.get('elements');
 		for (let i=0; i < elements.length; i++ ) {
 			var element = elements[i];
 			console.log(element);
 			var elem_obj = new Y.Base.mix(Y.M.atto_lmsace.Button, [eval(element)]);
 			THUMB.push({
-				'name': element, 
-				'thumb': elem_obj.prototype.element()
+				'name': element,
+				'thumb': elem_obj.prototype.thumb_output()
 			});
 			ELEMENTS[element] = elem_obj
-		}		
-		
-		return 
-	}	
+		}
+		var init_template = Y.Handlebars.compile(visualLayout);
+		var visual_output = Y.Node.create(init_template());
+
+		visual_output.all(SELECTORS.ADDELEMENT).on('click', function() {
+			funcobj._display_elements_list();
+		}, funcobj);
+
+		return visual_output;
+	},
+
+	_display_elements_list: function() {
+		var this_obj = this;
+		elements_list_output = '';
+		THUMB.forEach( element => {
+			elements_list_output += element.thumb
+		});
+		// alert();
+		this._dialogue = null; // Make previous dialogue null to open new one.
+		// this._show_elements_dialogue(elements_list);
+		var elements_dialogue = this.getDialogue({
+			headerContent: 'Elements list', // M.util.get_string('builderheading', component).
+			width: '50%',
+			bodyContent: elements_list_output,
+		});
+		/*var elements_dialogue = new M.core.dialogue({
+			headerContent: 'Elements list', // M.util.get_string('builderheading', component).
+			width: '50%',
+			bodyContent: "elements_list_output",
+			visible: false,
+			modal: true,
+			close: true,
+			draggable: true
+		});*/
+		console.log(elements_dialogue);
+		elements_dialogue.show();
+	}
 
 }, {
 	ATTRS: {

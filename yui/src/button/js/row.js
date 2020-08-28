@@ -11,7 +11,14 @@ Row.prototype = {
 	},
 
 	thumb_output: function() {
-		return 'row Thumb';
+		return '<div class="column-thumb {{CSS_CLASS.ELEMENTTHUMB}}">'+
+			'<div class="img-block">'+
+				'<i class="fa fa-row"></i>'+
+			'</div>'+
+			'<div class="element-title">'+
+				'<span class="{{elementthumbtitle}}">Row</span>'+
+			'</div>'+
+		'</div>';
 	},
 
 	form_fields: function() {

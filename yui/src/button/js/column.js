@@ -11,7 +11,14 @@ Column.prototype = {
 	},
 
 	thumb_output: function() {
-		return 'Column output';
+		return '<div class="column-thumb {{CSS_CLASS.ELEMENTTHUMB}}">'+
+			'<div class="img-block">'+
+				'<i class="fa fa-column"></i>'+
+			'</div>'+
+			'<div class="element-title">'+
+				'<span>Column</span>'+
+			'</div>'+
+		'</div>';
 	},
 
 	form_fields: function() {
