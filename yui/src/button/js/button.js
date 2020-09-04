@@ -18,12 +18,17 @@
 	CSS_ATTR = {
 		ELEMENTTHUMB: 'element-thumb-parent',
 		ELEMENTADDED: 'added-element',
+		TABCONTENT: 'tab-content',
+		ELEMENTFORM: 'lmsaceElementForm',
+
 	},
 
 	SELECTORS = {
 		ADDELEMENT: '#addelement a',
 		ELEMENTTHUMB: '.' + CSS_ATTR.ELEMENTTHUMB,
 		ELEMENTADDED: '#' + CSS_ATTR.ELEMENTADDED,
+		TABCONTENT: '.' + CSS_ATTR.TABCONTENT,
+		ELEMENTFORM: '#' + CSS_ATTR.ELEMENTFORM,
 	},
 
 	TEMPLATES = {
@@ -47,23 +52,25 @@
 				'</div>',
 
 		FORM: '<div class="lmsace-builder-form element-add-form">'+
-					'<ul class="nav nav-tabs" id="lmsace-builder-tabs">'+
-					'{{#tabs}}'+
-						'<li class="nav-item">'+
-							'<a class="nav-link active" id="{{name}}-tab" data-toggle="tab" href="#{{name}}" role="tab" aria-controls="{{name}}" aria-selected="true">{{title}}</a>'+
-						'</li>'+
-					'{{/tabs}}'+
-					'</ul>'+
-
-					'<div class="tab-content" id="lmsace-builder-tabs">'+
+					'<form class="lmsace-element-form" id="{{CSS_ATTR.ELEMENTFORM}}" >'+
+						'<ul class="nav nav-tabs" id="lmsace-builder-tabs">'+
 						'{{#tabs}}'+
-						'<div class="tab-pane fade" id="{{name}}" role="tabpanel" aria-labelledby="{{name}}-tab">'+
-							'{{#fields}}'+
-								'{{> this.type }}'+
-							'{{/fields}}'+
-						'</div>'+
+							'<li class="nav-item">'+
+								'<a class="nav-link active" id="{{name}}-tab" data-toggle="tab" href="#{{name}}" role="tab" aria-controls="{{name}}" aria-selected="true">{{title}}</a>'+
+							'</li>'+
 						'{{/tabs}}'+
-					'</div>'+
+						'</ul>'+
+
+						'<div class="{{CSS_ATTR.TABCONTENT}}" id="lmsace-builder-tabs">'+
+							'{{#tabs}}'+
+							'<div class="tab-pane" id="{{name}}" role="tabpanel" aria-labelledby="{{name}}-tab">'+
+								'{{#fields}}'+
+									'{{{formfield}}}'+
+								'{{/fields}}'+
+							'</div>'+
+							'{{/tabs}}'+
+						'</div>'+
+					'</form>'+
 				'</div>',
 
 		FORM_FIELDS: {
@@ -173,6 +180,12 @@
 				field = TEMPLATES.FORM_FIELDS[key];
 				Y.Handlebars.registerPartial(key, field);
 			}
+
+			Y.Handlebars.registerHelper('formfield', function() {
+				var type = this.type.toUpperCase();
+				var content = TEMPLATES.FORM_FIELDS[type];
+				return Y.Handlebars.render(content, this);
+			})
 		},
 
 		/**
@@ -199,6 +212,7 @@
 				bodyContent: bodycontent
 			});
 			dialoguecontent.show();
+			$(SELECTORS.TABCONTENT).find('.tab-pane:first').addClass('active');
 			return dialoguecontent;
 		},
 
@@ -248,6 +262,13 @@
 			});*/
 			// console.log(elements_dialogue);
 			ELEMENTS_DIALOGUE.show();
+		},
+
+		/**
+		 * Generate shortcode from the element form options,
+		 */
+		_generate_shortcode_form: function() {
+
 		}
 
 	}, {

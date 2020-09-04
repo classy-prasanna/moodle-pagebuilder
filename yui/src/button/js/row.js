@@ -52,6 +52,7 @@ Row.prototype = {
 							name: 'row_height',
 							title: 'Row Height',
 							type: 'select',
+							temp: 'SELECT',
 							default: '1',
 							options: [
 								{ value: 'default', title: 'Default from Theme Options' },
@@ -67,6 +68,7 @@ Row.prototype = {
 							name: 'width',
 							title: 'Full width content',
 							type: 'checkbox',
+							temp: 'CHECKBOX',
 							default: '0',
 							options: [
 								{ value: 1, title: 'Stretch content of this row to the screen width' }
@@ -77,6 +79,7 @@ Row.prototype = {
 							name: 'bg_video',
 							title: 'Background Video',
 							type: 'text',
+							temp: 'TEXT',
 							default: '',
 							placeholder: ''
 						}

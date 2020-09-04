@@ -20,12 +20,17 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 	CSS_ATTR = {
 		ELEMENTTHUMB: 'element-thumb-parent',
 		ELEMENTADDED: 'added-element',
+		TABCONTENT: 'tab-content',
+		ELEMENTFORM: 'lmsaceElementForm',
+
 	},
 
 	SELECTORS = {
 		ADDELEMENT: '#addelement a',
 		ELEMENTTHUMB: '.' + CSS_ATTR.ELEMENTTHUMB,
 		ELEMENTADDED: '#' + CSS_ATTR.ELEMENTADDED,
+		TABCONTENT: '.' + CSS_ATTR.TABCONTENT,
+		ELEMENTFORM: '#' + CSS_ATTR.ELEMENTFORM,
 	},
 
 	TEMPLATES = {
@@ -49,23 +54,25 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				'</div>',
 
 		FORM: '<div class="lmsace-builder-form element-add-form">'+
-					'<ul class="nav nav-tabs" id="lmsace-builder-tabs">'+
-					'{{#tabs}}'+
-						'<li class="nav-item">'+
-							'<a class="nav-link active" id="{{name}}-tab" data-toggle="tab" href="#{{name}}" role="tab" aria-controls="{{name}}" aria-selected="true">{{title}}</a>'+
-						'</li>'+
-					'{{/tabs}}'+
-					'</ul>'+
-
-					'<div class="tab-content" id="lmsace-builder-tabs">'+
+					'<form class="lmsace-element-form" id="{{CSS_ATTR.ELEMENTFORM}}" >'+
+						'<ul class="nav nav-tabs" id="lmsace-builder-tabs">'+
 						'{{#tabs}}'+
-						'<div class="tab-pane fade" id="{{name}}" role="tabpanel" aria-labelledby="{{name}}-tab">'+
-							'{{#fields}}'+
-								'{{> this.type }}'+
-							'{{/fields}}'+
-						'</div>'+
+							'<li class="nav-item">'+
+								'<a class="nav-link active" id="{{name}}-tab" data-toggle="tab" href="#{{name}}" role="tab" aria-controls="{{name}}" aria-selected="true">{{title}}</a>'+
+							'</li>'+
 						'{{/tabs}}'+
-					'</div>'+
+						'</ul>'+
+
+						'<div class="{{CSS_ATTR.TABCONTENT}}" id="lmsace-builder-tabs">'+
+							'{{#tabs}}'+
+							'<div class="tab-pane" id="{{name}}" role="tabpanel" aria-labelledby="{{name}}-tab">'+
+								'{{#fields}}'+
+									'{{{formfield}}}'+
+								'{{/fields}}'+
+							'</div>'+
+							'{{/tabs}}'+
+						'</div>'+
+					'</form>'+
 				'</div>',
 
 		FORM_FIELDS: {
@@ -175,6 +182,12 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				field = TEMPLATES.FORM_FIELDS[key];
 				Y.Handlebars.registerPartial(key, field);
 			}
+
+			Y.Handlebars.registerHelper('formfield', function() {
+				var type = this.type.toUpperCase();
+				var content = TEMPLATES.FORM_FIELDS[type];
+				return Y.Handlebars.render(content, this);
+			})
 		},
 
 		/**
@@ -201,6 +214,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				bodyContent: bodycontent
 			});
 			dialoguecontent.show();
+			$(SELECTORS.TABCONTENT).find('.tab-pane:first').addClass('active');
 			return dialoguecontent;
 		},
 
@@ -250,6 +264,13 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			});*/
 			// console.log(elements_dialogue);
 			ELEMENTS_DIALOGUE.show();
+		},
+
+		/**
+		 * Generate shortcode from the element form options,
+		 */
+		_generate_shortcode_form: function() {
+
 		}
 
 	}, {
@@ -315,6 +336,7 @@ Row.prototype = {
 							name: 'row_height',
 							title: 'Row Height',
 							type: 'select',
+							temp: 'SELECT',
 							default: '1',
 							options: [
 								{ value: 'default', title: 'Default from Theme Options' },
@@ -330,6 +352,7 @@ Row.prototype = {
 							name: 'width',
 							title: 'Full width content',
 							type: 'checkbox',
+							temp: 'CHECKBOX',
 							default: '0',
 							options: [
 								{ value: 1, title: 'Stretch content of this row to the screen width' }
@@ -340,6 +363,7 @@ Row.prototype = {
 							name: 'bg_video',
 							title: 'Background Video',
 							type: 'text',
+							temp: 'TEXT',
 							default: '',
 							placeholder: ''
 						}
