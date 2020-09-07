@@ -17,12 +17,15 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 	THIS = null,
 
+	CODEKEY = 'LMSACE', // sHORTCODE KEY.
+
 	CSS_ATTR = {
 		ELEMENTTHUMB: 'element-thumb-parent',
 		ELEMENTADDED: 'added-element',
 		TABCONTENT: 'tab-content',
 		ELEMENTFORM: 'lmsaceElementForm',
-
+		CODESLIST: 'codes-list',
+		BUTTONSAVE: 'button-save'
 	},
 
 	SELECTORS = {
@@ -31,6 +34,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		ELEMENTADDED: '#' + CSS_ATTR.ELEMENTADDED,
 		TABCONTENT: '.' + CSS_ATTR.TABCONTENT,
 		ELEMENTFORM: '#' + CSS_ATTR.ELEMENTFORM,
+		CODESLIST: '#' + CSS_ATTR.CODESLIST,
+		BUTTONSAVE: '#' + CSS_ATTR.BUTTONSAVE,
 	},
 
 	TEMPLATES = {
@@ -51,6 +56,11 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 							'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i></a>'+
 						'</div>'+
 					'</div>'+
+					'<div class="code-tab" > '+
+						'<div class="codes-list" id="{{CSS_ATTR.CODESLIST}}" >' +
+
+						'</div>' +
+					'</div>' +
 				'</div>',
 
 		FORM: '<div class="lmsace-builder-form element-add-form">'+
@@ -72,6 +82,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 							'</div>'+
 							'{{/tabs}}'+
 						'</div>'+
+
+						'<div class="element-save-parent" > '+
+							'<button type="submit" class="btn btn-primary" id="{{CSS_ATTR.BUTTONSAVE}}" > SAVE </button> ' +
+						'</div>' +
 					'</form>'+
 				'</div>',
 
@@ -97,12 +111,18 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 								'{{/options}}'+
 							'</div>',
 
-		}
+		},
+
+		SHORTCODE: '[LMSACE '+
+			'{{#params}}' +
+				'{{params.name}}="{{params.value}}" ' +
+			'{{/params}}' +
+		' ]',
 	},
 
 
 
-	builder;
+	builder, ELEMENTFORM_DIALOGUE, ELEMENTS_DIALOGUE;
 
 	Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
 
@@ -122,6 +142,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		show_builder: function() {
 			this._dialogue = null;
+			// Builder dialogue.
 			var builder = this.getDialogue({
 				headerContent: 'LMSACE Builder', // M.util.get_string('builderheading', component).
 				width: '80%',
@@ -135,9 +156,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		build_dialogue_body: function() {
 			var funcobj = this;
-
-			visual_output = funcobj._rendertemplate(TEMPLATES.VISUALLAYOUT);
-
+			visual_output = funcobj._rendertemplate( TEMPLATES.VISUALLAYOUT );
 			visual_output.all(SELECTORS.ADDELEMENT).on('click', function() {
 				funcobj._display_elements_list();
 			}, funcobj);
@@ -199,6 +218,13 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( elem_obj.element_output() ) );
 			console.log( elem_obj.form_fields() );
 			var formfields = THIS._rendertemplate( TEMPLATES.FORM, elem_obj.form_fields() );
+			formfields.delegate(SELECTORS.ELEMENTFORM).on('submit', function(e) {
+				e.preventDefault();
+				console.log( $(SELECTORS.ELEMENTFORM).serializeArray() );
+				console.log( e );
+
+				THIS._generate_shortcode_form( elem_obj.element_thumb().id, $(this).serializeArray() );
+			});
 			ELEMENTS_DIALOGUE.hide();
 			this._update_dialogue_content(elem_obj.addtitle, formfields);
 		},
@@ -208,14 +234,14 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		 */
 		_update_dialogue_content: function(title, bodycontent, width=50) {
 			this._dialogue = null;
-			var dialoguecontent = this.getDialogue({
+			ELEMENTFORM_DIALOGUE = this.getDialogue({
 				headerContent: title, // M.util.get_string('builderheading', component).
 				width:'50%',
 				bodyContent: bodycontent
 			});
-			dialoguecontent.show();
+			ELEMENTFORM_DIALOGUE.show();
 			$(SELECTORS.TABCONTENT).find('.tab-pane:first').addClass('active');
-			return dialoguecontent;
+			// return dialoguecontent;
 		},
 
 
@@ -269,8 +295,19 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		/**
 		 * Generate shortcode from the element form options,
 		 */
-		_generate_shortcode_form: function() {
+		_generate_shortcode_form: function( element, formdata, add=true ) {
+			console.log( formdata );
+			var params = ' type="'+ element +'"';
+			formdata.forEach(function(data) {
+				params += ' '+ data.name + '="'+ data.value+'"';
+			})
+			shortcode = '['+ CODEKEY +' '+ params +'][/'+ CODEKEY +']';
+			$(SELECTORS.CODESLIST).append(shortcode);
+			if (add) {
+			} else {
 
+			}
+			ELEMENTFORM_DIALOGUE.hide();
 		}
 
 	}, {
