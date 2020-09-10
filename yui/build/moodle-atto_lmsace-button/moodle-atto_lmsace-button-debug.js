@@ -25,7 +25,9 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		TABCONTENT: 'tab-content',
 		ELEMENTFORM: 'lmsaceElementForm',
 		CODESLIST: 'codes-list',
-		BUTTONSAVE: 'button-save'
+		BUTTONSAVE: 'button-save',
+		SAVELAYOUT: 'save_layout',
+		CANCELLAYOUT: 'cancel_layout',
 	},
 
 	SELECTORS = {
@@ -36,6 +38,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		ELEMENTFORM: '#' + CSS_ATTR.ELEMENTFORM,
 		CODESLIST: '#' + CSS_ATTR.CODESLIST,
 		BUTTONSAVE: '#' + CSS_ATTR.BUTTONSAVE,
+		SAVELAYOUT: '#' + CSS_ATTR.SAVELAYOUT,
+		CANCELLAYOUT: '#' + CSS_ATTR.CANCELLAYOUT,
 	},
 
 	TEMPLATES = {
@@ -60,6 +64,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 						'<div class="codes-list" id="{{CSS_ATTR.CODESLIST}}" >' +
 
 						'</div>' +
+					'</div>' +
+					'<div class="save-button-layout">' +
+						'<input type="button" id="{{CSS_ATTR.SAVELAYOUT}}" value="Save" >' +
+						'<input type="button" id="{{CSS_ATTR.CANCELLAYOUT}}" value="Cancel" >' +
 					'</div>' +
 				'</div>',
 
@@ -128,9 +136,14 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 	Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
 
+		_selected_point: null,
+
+		HOST: null,
 
 		initializer: function() {
 
+			_selected_point = this.get('host').getSelection();
+			HOST = this.get('host');
 			this.addButton({
 
 				title: 'pluginname',
@@ -152,6 +165,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			}, true);
 
 			builder.show();
+
+			builder.on('hide', function() {
+				alert();
+			})
 			this._registerformfields();
 
 		},
@@ -195,8 +212,6 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					THIS._add_selected_element( elem_obj );
 				})
 			})
-
-
 		},
 
 		_registerformfields: function() {
