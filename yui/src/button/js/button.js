@@ -128,48 +128,61 @@
 		' ]',
 	},
 
-
-
-	builder, ELEMENTFORM_DIALOGUE, ELEMENTS_DIALOGUE;
+	BUILDER_DIALOGUE, ELEMENTFORM_DIALOGUE, ELEMENTS_DIALOGUE, SELECTION_DATA;
 
 	Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
 
 		_selected_point: null,
 
-		HOST: null,
+		_host: null,
 
 		initializer: function() {
-
-			_selected_point = this.get('host').getSelection();
-			HOST = this.get('host');
+			this._host = this.get('host');
 			this.addButton({
-
 				title: 'pluginname',
 				icon: 'i/addblock',
 				// Watch the following tags and add/remove highlighting as appropriate:
 				callback: this.show_builder
 			});
-
 			THIS = this;
 		},
 
 		show_builder: function() {
-			this._dialogue = null;
+			bodycontent = null;
+			// Check the selection point is lmsace builder.
+			// generate and load body content from selection data.
+			this._selected_point = this.get('host').getSelection();
+console.log(this._selected_point);
+// console.log(this._selected_point.length);
+			if (this._selected_point.length) {
+				for (let i=0; i < this._selected_point.length; i++ ) {
+
+					SELECTION_DATA = this._selected_point[i].startContainer.data;
+					// console.log(SELECTION_DATA);
+					if ( SELECTION_DATA.includes('[LMSACEBUILDER]') ) {
+						bodycontent = this._load_shortcode_visual_body();
+					}
+				}
+			}
+
+			if ( bodycontent == null) {
+				bodycontent = this.build_dialogue_body();
+			}
+
 			// Builder dialogue.
-			var builder = this.getDialogue({
-				headerContent: 'LMSACE Builder', // M.util.get_string('builderheading', component).
-				width: '80%',
-				bodyContent: this.build_dialogue_body()
-			}, true);
+			if ( BUILDER_DIALOGUE == null ) {
+				// alert();
+				this._dialogue = null;
+				BUILDER_DIALOGUE = this.getDialogue();
+			}
+			BUILDER_DIALOGUE.set('headerContent', 'LMSACE Builder' );
+			BUILDER_DIALOGUE.set('width', '80%');
+			BUILDER_DIALOGUE.set('bodyContent', bodycontent );
 
-			builder.show();
-
-			builder.on('hide', function() {
-				alert();
-			})
+			BUILDER_DIALOGUE.show();
 			this._registerformfields();
-
 		},
+
 
 		build_dialogue_body: function() {
 			var funcobj = this;
@@ -178,8 +191,26 @@
 				funcobj._display_elements_list();
 			}, funcobj);
 
+			visual_output.one(SELECTORS.SAVELAYOUT).on('click', function() {
+				THIS._insert_shortcode();
+			})
 			return visual_output;
 		},
+
+		_load_shortcode_visual_body: function() {
+			if (SELECTION_DATA != null) {
+				// shortcoderegex = /\[LMSACE (.+?)?\](?:(.+?)?\[\/LMSACE\])?/g;
+				// elementslist = SELECTION_DATA.match(shortcodere);
+				// console.log(elementslist);
+
+				var shortcoderegex = /\[LMSACE (.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
+				while ((elementslist = shortcoderegex.exec(SELECTION_DATA)) !== null) {
+					let msg = 'Found ' + elementslist[0] + '. ';
+					msg += 'Next match starts at ' + shortcoderegex.lastIndex;
+					console.log(msg);
+				}
+			}
+ 		},
 
 		_rendertemplate: function(html, option=null) {
 			var template = Y.Handlebars.compile(html);
@@ -187,7 +218,7 @@
 				CSS_ATTR:CSS_ATTR,
 				SELECTORS: SELECTORS,
 				COMPONENT: COMPONENT
-			}, option)
+			}, option);
 			var output = Y.Node.create(
 				template(config)
 			);
@@ -208,8 +239,8 @@
 					console.log( elem_obj );
 					console.log( elem_obj.form_fields() );
 					THIS._add_selected_element( elem_obj );
-				})
-			})
+				});
+			});
 		},
 
 		_registerformfields: function() {
@@ -232,17 +263,14 @@
 		 * @param {element class object} elem_obj
 		 */
 		_add_selected_element: function( elem_obj ) {
-			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( elem_obj.element_output() ) );
-			console.log( elem_obj.form_fields() );
+
 			var formfields = THIS._rendertemplate( TEMPLATES.FORM, elem_obj.form_fields() );
-
-
 			formfields.all(".form-parent-wrapper").each(function(form) {
 				form.delegate('submit', function(e) {
 					e.preventDefault();
 					var data = $(SELECTORS.ELEMENTFORM).serializeArray();
-					console.log(data);
-					THIS._generate_shortcode_form( elem_obj.element_thumb().id, data );
+					// console.log(data);
+					THIS._generate_shortcode_form( elem_obj, data );
 				}, SELECTORS.ELEMENTFORM, THIS );
 			});
 			// formfields.all(SELECTORS.ELEMENTFORM).on('submit', function(e) {
@@ -259,25 +287,9 @@
 		 * Update the dialogue body content.
 		 */
 		_update_dialogue_content: function(title, bodycontent, width=50) {
-			// this._dialogue = null;
-			// ELEMENTFORM_DIALOGUE = this.getDialogue({
-			// 	headerContent: title, // M.util.get_string('builderheading', component).
-			// 	width:'50%',
-			// 	bodyContent: bodycontent
-			// });
-			// ELEMENTFORM_DIALOGUE.show();
 			ELEMENTS_DIALOGUE.set('headerContent', title);
 			ELEMENTS_DIALOGUE.set('bodyContent', bodycontent).show();
 			$(SELECTORS.TABCONTENT).find('.tab-pane:first').addClass('active');
-			// ELEMENTS_DIALOGUE.all(".form-parent-wrapper").each(function(form) {
-			// 	form.delegate('submit', function(e) {
-			// 		e.preventDefault();
-			// 		console.log("test");
-			// 		var data = $(SELECTORS.ELEMENTFORM).serializeArray();
-			// 		THIS._generate_shortcode_form( elem_obj.element_thumb(), data );
-			// 	}, SELECTORS.ELEMENTFORM, THIS )
-			// })
-			// return dialoguecontent;
 		},
 
 
@@ -335,20 +347,29 @@
 		/**
 		 * Generate shortcode from the element form options,
 		 */
-		_generate_shortcode_form: function( element, formdata, add=true ) {
-			console.log( formdata );
+		_generate_shortcode_form: function( elem_obj, formdata, add=true ) {
+			var element = elem_obj.element_thumb().id;
 			var params = ' type="'+ element +'"';
 			formdata.forEach(function(data) {
 				params += ' '+ data.name + '="'+ data.value+'"';
 			})
 			shortcode = '['+ CODEKEY +' '+ params +'][/'+ CODEKEY +']';
+			// Add shortcode on codeslist.
 			$(SELECTORS.CODESLIST).append(shortcode);
+			// Add selements visual output for userinterface.
+			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( elem_obj.element_output() ) );
 			if (add == true) {
-
 			} else {
-
 			}
 			ELEMENTS_DIALOGUE.hide();
+		},
+
+		_insert_shortcode: function() {
+			var codelist = $(SELECTORS.CODESLIST).html();
+			this.get('host').setSelection(this._selected_point);
+			codelist = '[LMSACEBUILDER]' + codelist + '[/LMSACEBUILDER]';
+			this.get('host').insertContentAtFocusPoint(codelist);
+			BUILDER_DIALOGUE.hide();
 		}
 
 	}, {
