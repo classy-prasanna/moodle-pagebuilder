@@ -27,7 +27,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		CODESLIST: 'codes-list',
 		BUTTONSAVE: 'button-save',
 		SAVELAYOUT: 'save_layout',
-		CANCELLAYOUT: 'cancel_layout',
+		CANCELLAYOUT: 'cancel_layout',        
+        EDITITEM: 'edit_element_item',
 	},
 
 	SELECTORS = {
@@ -40,6 +41,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		BUTTONSAVE: '#' + CSS_ATTR.BUTTONSAVE,
 		SAVELAYOUT: '#' + CSS_ATTR.SAVELAYOUT,
 		CANCELLAYOUT: '#' + CSS_ATTR.CANCELLAYOUT,
+        EDITITEM: '[data-func="'+ CSS_ATTR.EDITITEM +'"]',
 	},
 
 	TEMPLATES = {
@@ -61,8 +63,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 						'</div>'+
 					'</div>'+
 					'<div class="code-tab" > '+
-						'<div class="codes-list" id="{{CSS_ATTR.CODESLIST}}" >' +
-
+						'<div class="codes-list" id="{{CSS_ATTR.CODESLIST}}" > {{codelist}}' +                            
 						'</div>' +
 					'</div>' +
 					'<div class="save-button-layout">' +
@@ -123,6 +124,15 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		},
 
+        BUILDERITEMTOPTIONS: '<div class="list"> '+
+                        '<p class="edit-element-item" data-func="edit_element_item" data-elementid="{{id}}" data-codeuid="{{uid}}" data-params="{{params}}" > Edit </p>'+
+                        '<p class="edit-element-item" data-func="delete_element_item" data-elementid="{{id}}" data-codeuid="{{uid}}" > Delete </p> '+
+                        '</div> ',
+
+        ELEMENT_ITEM_DIV: '<div class="lmsace-builder-item element-{{id}}" id="{{id}}" data-elementid="{{id}}">'+
+                            '<div class="builder-item-options"> {{{BUILDERITEMTOPTIONS}}} </div>' + 
+                            '<div class="builder-maincontnt" > {{{output}}}</div></div>',
+
 		SHORTCODE: '[LMSACE '+
 			'{{#params}}' +
 				'{{params.name}}="{{params.value}}" ' +
@@ -138,6 +148,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		_host: null,
 
+        // #1. 
 		initializer: function() {
 			this._host = this.get('host');
 			this.addButton({
@@ -149,27 +160,31 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			THIS = this;
 		},
 
+        /**
+         * Show builder popup.
+         */
 		show_builder: function() {
-			bodycontent = null;
+			bodycontent = codeslist = null;
 			// Check the selection point is lmsace builder.
+			// if ( bodycontent == null) {
+				
+			// }
 			// generate and load body content from selection data.
 			this._selected_point = this.get('host').getSelection();
-console.log(this._selected_point);
-// console.log(this._selected_point.length);
+
 			if (this._selected_point.length) {
-				for (let i=0; i < this._selected_point.length; i++ ) {
+				for (var i=0; i < this._selected_point.length; i++ ) {
 
 					SELECTION_DATA = this._selected_point[i].startContainer.data;
 					// console.log(SELECTION_DATA);
-					if ( SELECTION_DATA.includes('[LMSACEBUILDER]') ) {
-						bodycontent = this._load_shortcode_visual_body();
+					if ( typeof SELECTION_DATA != undefined && SELECTION_DATA != null && SELECTION_DATA.includes('[LMSACEBUILDER]') ) {
+						// bodycontent = 
+                        codeslist = this._load_shortcode_visual_body();
 					}
 				}
 			}
 
-			if ( bodycontent == null) {
-				bodycontent = this.build_dialogue_body();
-			}
+            bodycontent = this.build_dialogue_body(codeslist);
 
 			// Builder dialogue.
 			if ( BUILDER_DIALOGUE == null ) {
@@ -186,16 +201,26 @@ console.log(this._selected_point);
 		},
 
 
-		build_dialogue_body: function() {
+		build_dialogue_body: function(codeslist='') {
 			var funcobj = this;
-			visual_output = funcobj._rendertemplate( TEMPLATES.VISUALLAYOUT );
+            option = {codelist: codeslist};
+			visual_output = funcobj._rendertemplate( TEMPLATES.VISUALLAYOUT, option );
+            // Register add element icon event.
+            // Display the element list when the add element clicked.
 			visual_output.all(SELECTORS.ADDELEMENT).on('click', function() {
 				funcobj._display_elements_list();
 			}, funcobj);
-
+            // Register event to save content. Add the generated shortcode to the editor.
 			visual_output.one(SELECTORS.SAVELAYOUT).on('click', function() {
-				THIS._insert_shortcode();
-			})
+				THIS._insert_builder_content();
+			});
+
+            visual_output.delegate('click', function() {
+            	
+                dataset = this.get('dataset');
+                
+            }, SELECTORS.EDITITEM);
+
 			return visual_output;
 		},
 
@@ -204,13 +229,15 @@ console.log(this._selected_point);
 				// shortcoderegex = /\[LMSACE (.+?)?\](?:(.+?)?\[\/LMSACE\])?/g;
 				// elementslist = SELECTION_DATA.match(shortcodere);
 				// console.log(elementslist);
-
+                var element_item_code = '';
 				var shortcoderegex = /\[LMSACE (.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
 				while ((elementslist = shortcoderegex.exec(SELECTION_DATA)) !== null) {
-					let msg = 'Found ' + elementslist[0] + '. ';
-					msg += 'Next match starts at ' + shortcoderegex.lastIndex;
-					console.log(msg);
+					element_item_code += elementslist[0];
+                    // $(SELECTORS.CODESLIST).append(element_item_code);
+					// msg += 'Next match starts at ' + shortcoderegex.lastIndex;
+					
 				}
+                return element_item_code;
 			}
  		},
 
@@ -219,8 +246,10 @@ console.log(this._selected_point);
 			config = Y.merge({
 				CSS_ATTR:CSS_ATTR,
 				SELECTORS: SELECTORS,
-				COMPONENT: COMPONENT
+				COMPONENT: COMPONENT,     
+                TEMPLATES: TEMPLATES,           
 			}, option);
+            console.log(option);
 			var output = Y.Node.create(
 				template(config)
 			);
@@ -238,15 +267,16 @@ console.log(this._selected_point);
 					// alert(this);
 					var id = this.getAttribute('data-elementid');
 					var elem_obj = ELEMENTS[id];
-					console.log( elem_obj );
-					console.log( elem_obj.form_fields() );
+					// console.log( elem_obj );
+					// console.log( elem_obj.form_fields() );
 					THIS._add_selected_element( elem_obj );
 				});
 			});
 		},
 
+        // Register the form input fields.
 		_registerformfields: function() {
-			console.log(TEMPLATES.FORM_FIELDS);
+			// console.log(TEMPLATES.FORM_FIELDS);
 			for ( var key in TEMPLATES.FORM_FIELDS) {
 				field = TEMPLATES.FORM_FIELDS[key];
 				Y.Handlebars.registerPartial(key, field);
@@ -282,7 +312,9 @@ console.log(this._selected_point);
 			// 	THIS._generate_shortcode_form( elem_obj.element_thumb().id, $(this).serializeArray() );
 			// });
 			ELEMENTS_DIALOGUE.hide();
-			this._update_dialogue_content(elem_obj.addtitle, formfields);
+            if ( elem_obj.form_fields() != "") {
+			    this._update_dialogue_content(elem_obj.addtitle, formfields);
+            }
 		},
 
 		/**
@@ -305,6 +337,7 @@ console.log(this._selected_point);
 					// var elem_obj = new Y.Base.mix(Y.M.atto_lmsace.Button, [eval(element)]);
 					var elem_obj = eval(element);
 					var element_thumb = { DATA: elem_obj.prototype.element_thumb() };
+                    console.log(element_thumb);
 					var elementtemplate = this_obj._rendertemplate( TEMPLATES.THUMBBOX, element_thumb );
 					// Register default element events.
 					// console.log( elem_obj.prototype.form_fields() );
@@ -313,7 +346,7 @@ console.log(this._selected_point);
 					elem_obj.prototype.element_event_register( elementtemplate );
 					THUMBLIST.append( elementtemplate );
 					ELEMENTS[ element.toLowerCase() ] = elem_obj.prototype;
-					console.log(ELEMENTS);
+					// console.log(ELEMENTS);
 				}
 				// console.log(ELEMENTS[row]);
 				this_obj._register_editevent();
@@ -350,8 +383,10 @@ console.log(this._selected_point);
 		 * Generate shortcode from the element form options,
 		 */
 		_generate_shortcode_form: function( elem_obj, formdata, add=true ) {
+			var uid = THIS._generate_uid();
 			var element = elem_obj.element_thumb().id;
 			var params = ' type="'+ element +'"';
+			params = ' id="'+uid+'"';
 			formdata.forEach(function(data) {
 				params += ' '+ data.name + '="'+ data.value+'"';
 			})
@@ -359,14 +394,26 @@ console.log(this._selected_point);
 			// Add shortcode on codeslist.
 			$(SELECTORS.CODESLIST).append(shortcode);
 			// Add selements visual output for userinterface.
-			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( elem_obj.element_output() ) );
+            // console.log(THIS._rendertemplate( elem_obj.element_output()));
+            var visualcontent = {
+        							output: THIS._rendertemplate( elem_obj.element_output() ).get('outerHTML') , 
+            						id: element,
+            						BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
+
+            					};
+			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
+
 			if (add == true) {
 			} else {
 			}
 			ELEMENTS_DIALOGUE.hide();
 		},
 
-		_insert_shortcode: function() {
+		_generate_uid: function() {
+			return 'yui_' + Date.now();
+		},
+
+		_insert_builder_content: function() {
 			var codelist = $(SELECTORS.CODESLIST).html();
 			this.get('host').setSelection(this._selected_point);
 			codelist = '[LMSACEBUILDER]' + codelist + '[/LMSACEBUILDER]';
@@ -394,30 +441,29 @@ Row.prototype = {
 	addtitle: 'Add Row',
 
 	element_thumb: function() {
-		return { id: 'row', icon: 'fa fa-list', title: 'Row' };
+		return {id: 'row', icon: 'fa fa-list', title: 'Row'};
 	},
 
 	element_output: function() {
-		return '<div class="element-row {{CSS_ATTR.ADDEDELEMENTCLASS}}" id="row" data-elementid="row">'+
-					'<div class="row-bar col col-md-12">'+
-						'<p class="bar-content">'+
-							'<div class="left-options">'+
-								'<ul class="column-counts" >'+
-									'<li data-col="1"> 1 column </li>'+
-									'<li data-col="2"> 2 column </li>'+
-									'<li data-col="3"> 3 column </li>'+
-									'<li data-col="4"> 4 column </li>'+
-								'</ul>'+
-							'</div>'+
-							'<div class="right-options">{{ TEMPLATES.ELEMENT_DEFALT_OPTIONS }}</div>'+
-						'</p>'+
-						'<div class="row-elements">'+
-							'<div class="row-contents"></div>'+
-							'<div id="addelement">'+
-								'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i></a>'+
-							'</div>'+
-						'</div>'+
-					'</div>'+
+		return '<div class="{{CSS_ATTR.ADDEDELEMENTCLASS}}">' +
+					'<div class="row-bar col col-md-12">' +
+						'<p class="bar-content">' +
+							'<div class="left-options">' +
+								'<ul class="column-counts" >' +
+									'<li data-col="1"> 1 column </li>' +
+									'<li data-col="2"> 2 column </li>' +
+									'<li data-col="3"> 3 column </li>' +
+									'<li data-col="4"> 4 column </li>' +
+								'</ul>' +
+							'</div>' +							
+						'</p>' +
+						'<div class="row-elements">' +
+							'<div class="row-contents"></div>' +
+							'<div id="addelement">' +
+								'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i> </a>' +
+							'</div>' +
+						'</div>' +
+					'</div>' +
 				'</div>';
 	},
 
@@ -431,22 +477,22 @@ Row.prototype = {
 			tabs: [
 				{
 					name: 'general',
-					title: 'General', //M.utill.get_string();
+					title: 'General', // M.utill.get_string();
 					fields: [
 						{
 							name: 'row_height',
 							title: 'Row Height',
 							type: 'select',
 							temp: 'SELECT',
-							default: '1',
+							"default": '1',
 							options: [
-								{ value: 'default', title: 'Default from Theme Options' },
-								{ value: 'auto', title: 'Equals the content height' },
-								{ value: 'small', title: 'Small' },
-								{ value: 'medium', title: 'Medium' },
-								{ value: 'large', title: 'Large' },
-								{ value: 'huge', title: 'Huge' },
-								{ value: 'full', title: 'Full Screen' },
+								{value: 'default', title: 'Default from Theme Options'},
+								{value: 'auto', title: 'Equals the content height'},
+								{value: 'small', title: 'Small'},
+								{value: 'medium', title: 'Medium'},
+								{value: 'large', title: 'Large'},
+								{value: 'huge', title: 'Huge'},
+								{value: 'full', title: 'Full Screen'},
 							]
 						},
 						{
@@ -454,9 +500,9 @@ Row.prototype = {
 							title: 'Full width content',
 							type: 'checkbox',
 							temp: 'CHECKBOX',
-							default: '0',
+							"default": '0',
 							options: [
-								{ value: 1, title: 'Stretch content of this row to the screen width' }
+								{value: 1, title: 'Stretch content of this row to the screen width'}
 							]
 
 						},
@@ -465,7 +511,7 @@ Row.prototype = {
 							title: 'Background Video',
 							type: 'text',
 							temp: 'TEXT',
-							default: '',
+							"default": '',
 							placeholder: ''
 						}
 					]
@@ -485,13 +531,12 @@ function Column() {
 Column.prototype = {
 
 
-
 	element_thumb: function() {
 		return {id: 'column', icon: 'fa fa-columns', title: 'Column'};
 	},
 
 	element_output: function() {
-
+		return "";
 	},
 
 	element_event_register: function() {
@@ -499,13 +544,13 @@ Column.prototype = {
 	},
 
 	thumb_output: function() {
-		return '<div class="column-thumb {{CSS_ATTR.ELEMENTTHUMB}}">'+
-			'<div class="img-block">'+
-				'<i class="fa fa-column"></i>'+
-			'</div>'+
-			'<div class="element-title">'+
-				'<span>Column</span>'+
-			'</div>'+
+		return '<div class="column-thumb {{CSS_ATTR.ELEMENTTHUMB}}">' +
+			'<div class="img-block">' +
+				'<i class="fa fa-column"></i>' +
+			'</div>' +
+			'<div class="element-title">' +
+				'<span>Column</span>' +
+			'</div>' +
 		'</div>';
 	},
 
