@@ -23,7 +23,7 @@ Row.prototype = {
 									'<li data-col="3"> 3 column </li>' +
 									'<li data-col="4"> 4 column </li>' +
 								'</ul>' +
-							'</div>' +							
+							'</div>' +
 						'</p>' +
 						'<div class="row-elements">' +
 							'<div class="row-contents"></div>' +
@@ -46,6 +46,7 @@ Row.prototype = {
 				{
 					name: 'general',
 					title: 'General', // M.utill.get_string();
+					class: 'active',
 					fields: [
 						{
 							name: 'row_height',

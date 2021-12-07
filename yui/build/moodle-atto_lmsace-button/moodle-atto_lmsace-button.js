@@ -336,6 +336,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					var element = avail_elements[i];
 					// var elem_obj = new Y.Base.mix(Y.M.atto_lmsace.Button, [eval(element)]);
 					var elem_obj = eval(element);
+					alert();
 					var element_thumb = { DATA: elem_obj.prototype.element_thumb() };
                     console.log(element_thumb);
 					var elementtemplate = this_obj._rendertemplate( TEMPLATES.THUMBBOX, element_thumb );

@@ -85,7 +85,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 						'<div class="{{CSS_ATTR.TABCONTENT}}" id="lmsace-builder-tabs">'+
 							'{{#tabs}}'+
-							'<div class="tab-pane" id="{{name}}" role="tabpanel" aria-labelledby="{{name}}-tab">'+
+							'<div class="tab-pane {{class}}" id="{{name}}" role="tabpanel" aria-labelledby="{{name}}-tab">'+
 								'{{#fields}}'+
 									'{{{formfield}}}'+
 								'{{/fields}}'+
@@ -133,7 +133,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
                             '<div class="builder-item-options"> {{{BUILDERITEMTOPTIONS}}} </div>' + 
                             '<div class="builder-maincontnt" > {{{output}}}</div></div>',
 
-		SHORTCODE: '[LMSACE '+
+		SHORTCODE: '[LMSACE:element={{element}} '+
 			'{{#params}}' +
 				'{{params.name}}="{{params.value}}" ' +
 			'{{/params}}' +
@@ -158,6 +158,37 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				callback: this.show_builder
 			});
 			THIS = this;
+
+			// Highlight the buttons.
+			this.get('host').on('atto:selectionchanged', function() {
+                if (this.isBuilderContent()) {
+                    this.highlightButtons();
+                } else {
+                    this.unHighlightButtons();
+                }
+            }, this);
+		},
+
+		isBuilderContent: function() {
+
+			var selectedNode = this.get('host').getSelectionParentNode();
+			this._selected_point = this.get('host').getSelection();
+
+			if (!selectedNode) {
+				return false;
+			}
+
+			if (this._selected_point.length) {
+				for (var i=0; i < this._selected_point.length; i++ ) {
+
+					SELECTION_DATA = this._selected_point[i].startContainer.data;
+					console.log(SELECTION_DATA);
+					if ( typeof SELECTION_DATA != undefined && SELECTION_DATA != null && (SELECTION_DATA.includes('[LMSACEBUILDER]') || SELECTION_DATA.includes('[LMSACE]'))) {
+                       return true;
+					}
+				}
+			}
+			return false;
 		},
 
         /**
@@ -165,10 +196,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
          */
 		show_builder: function() {
 			bodycontent = codeslist = null;
-			// Check the selection point is lmsace builder.
-			// if ( bodycontent == null) {
-				
-			// }
+			this._loadAllElements();
+
 			// generate and load body content from selection data.
 			this._selected_point = this.get('host').getSelection();
 
@@ -176,7 +205,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				for (var i=0; i < this._selected_point.length; i++ ) {
 
 					SELECTION_DATA = this._selected_point[i].startContainer.data;
-					// console.log(SELECTION_DATA);
+					console.log(SELECTION_DATA);
 					if ( typeof SELECTION_DATA != undefined && SELECTION_DATA != null && SELECTION_DATA.includes('[LMSACEBUILDER]') ) {
 						// bodycontent = 
                         codeslist = this._load_shortcode_visual_body();
@@ -188,7 +217,6 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 			// Builder dialogue.
 			if ( BUILDER_DIALOGUE == null ) {
-				// alert();
 				this._dialogue = null;
 				BUILDER_DIALOGUE = this.getDialogue();
 			}
@@ -198,6 +226,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 			BUILDER_DIALOGUE.show();
 			this._registerformfields();
+			
 		},
 
 
@@ -216,9 +245,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			});
 
             visual_output.delegate('click', function() {
-            	
                 dataset = this.get('dataset');
-                
             }, SELECTORS.EDITITEM);
 
 			return visual_output;
@@ -230,12 +257,22 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				// elementslist = SELECTION_DATA.match(shortcodere);
 				// console.log(elementslist);
                 var element_item_code = '';
-				var shortcoderegex = /\[LMSACE (.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
+				var shortcoderegex = /\[LMSACE:(.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
 				while ((elementslist = shortcoderegex.exec(SELECTION_DATA)) !== null) {
 					element_item_code += elementslist[0];
-                    // $(SELECTORS.CODESLIST).append(element_item_code);
-					// msg += 'Next match starts at ' + shortcoderegex.lastIndex;
-					
+					var params = {};
+					typeRex = /\[LMSACE:element="([^"]*)"/g;
+					var elementType = typeRex.exec(elementslist[0]);
+					if (elementType !== null && typeof elementType[1] != 'undefined' ) {
+						elementType = elementType[1];
+						var paramRegex = /([\w-]+)="([^"]*)"/g;
+						while ((m = paramRegex.exec(str)) !== null) {
+							params[ m[1] ] = m[2];
+						}
+						THIS._rendertemplate( ELEMENTS[elementType].form_fields(), params );
+						THIS._update_visual_content(element, uid, elem_obj, params, visualData);
+						// TODO
+					}
 				}
                 return element_item_code;
 			}
@@ -244,16 +281,16 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		_rendertemplate: function(html, option=null) {
 			var template = Y.Handlebars.compile(html);
 			config = Y.merge({
-				CSS_ATTR:CSS_ATTR,
+				CSS_ATTR : CSS_ATTR,
 				SELECTORS: SELECTORS,
-				COMPONENT: COMPONENT,     
-                TEMPLATES: TEMPLATES,           
+				COMPONENT: COMPONENT,
+				TEMPLATES: TEMPLATES,
 			}, option);
             console.log(option);
 			var output = Y.Node.create(
 				template(config)
 			);
-			// console.log(output);
+			console.log(output);
 			return output;
 		},
 
@@ -264,11 +301,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				// console.log(thumb);
 				thumb.on('click', function(e) {
 					e.preventDefault();
-					// alert(this);
 					var id = this.getAttribute('data-elementid');
 					var elem_obj = ELEMENTS[id];
-					// console.log( elem_obj );
-					// console.log( elem_obj.form_fields() );
 					THIS._add_selected_element( elem_obj );
 				});
 			});
@@ -296,12 +330,16 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		 */
 		_add_selected_element: function( elem_obj ) {
 
+			if (elem_obj.form_fields() == null) {
+				THIS._generate_shortcode_form( elem_obj, {} );
+				return;
+			}
 			var formfields = THIS._rendertemplate( TEMPLATES.FORM, elem_obj.form_fields() );
+
 			formfields.all(".form-parent-wrapper").each(function(form) {
 				form.delegate('submit', function(e) {
 					e.preventDefault();
 					var data = $(SELECTORS.ELEMENTFORM).serializeArray();
-					// console.log(data);
 					THIS._generate_shortcode_form( elem_obj, data );
 				}, SELECTORS.ELEMENTFORM, THIS );
 			});
@@ -311,7 +349,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			// 	console.log( e );
 			// 	THIS._generate_shortcode_form( elem_obj.element_thumb().id, $(this).serializeArray() );
 			// });
-			ELEMENTS_DIALOGUE.hide();
+			// ELEMENTS_DIALOGUE.hide();
             if ( elem_obj.form_fields() != "") {
 			    this._update_dialogue_content(elem_obj.addtitle, formfields);
             }
@@ -321,37 +359,34 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		 * Update the dialogue body content.
 		 */
 		_update_dialogue_content: function(title, bodycontent, width=50) {
-			ELEMENTS_DIALOGUE.set('headerContent', title);
-			ELEMENTS_DIALOGUE.set('bodyContent', bodycontent).show();
+			ELEMENTS_DIALOGUE.set('bodyContent', bodycontent)
+			ELEMENTS_DIALOGUE.set('headerContent', title)
+				.show();
 			$(SELECTORS.TABCONTENT).find('.tab-pane:first').addClass('active');
 		},
 
-
-		_display_elements_list: function() {
+		_loadAllElements: function() {
 			var this_obj = this;
 			elements_list_output = [];
 			var avail_elements = this.get('elements');
 			if (Object.keys(ELEMENTS).length <= 0 ) {
 				for (let i=0; i < avail_elements.length; i++ ) {
 					var element = avail_elements[i];
-					// var elem_obj = new Y.Base.mix(Y.M.atto_lmsace.Button, [eval(element)]);
-					var elem_obj = eval(element);
-					var element_thumb = { DATA: elem_obj.prototype.element_thumb() };
-                    console.log(element_thumb);
+					var elem_obj = M.aceaddon_builder[element].init();
+					var element_thumb = { DATA: elem_obj.element_thumb() };
 					var elementtemplate = this_obj._rendertemplate( TEMPLATES.THUMBBOX, element_thumb );
-					// Register default element events.
-					// console.log( elem_obj.prototype.form_fields() );
-					// this_obj._register_editevent( elementtemplate );
-					// Register elements extra events.
-					elem_obj.prototype.element_event_register( elementtemplate );
+					elem_obj.element_event_register( elementtemplate );
 					THUMBLIST.append( elementtemplate );
-					ELEMENTS[ element.toLowerCase() ] = elem_obj.prototype;
+					console.log(Object.getPrototypeOf(elem_obj));
+					ELEMENTS[ element.toLowerCase() ] = Object.getPrototypeOf(elem_obj);
 					// console.log(ELEMENTS);
 				}
 				// console.log(ELEMENTS[row]);
 				this_obj._register_editevent();
 			}
+		},
 
+		_display_elements_list: function() {
 
 			// alert();
 			this._dialogue = null; // Make previous dialogue null to open new one.
@@ -366,16 +401,6 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				ELEMENTS_DIALOGUE.set('bodyContent', THUMBLIST);
 				ELEMENTS_DIALOGUE.set('headerContent', 'Elements List');
 			}
-			/*var elements_dialogue = new M.core.dialogue({
-				headerContent: 'Elements list', // M.util.get_string('builderheading', component).
-				width: '50%',
-				bodyContent: "elements_list_output",
-				visible: false,
-				modal: true,
-				close: true,
-				draggable: true
-			});*/
-			// console.log(elements_dialogue);
 			ELEMENTS_DIALOGUE.show();
 		},
 
@@ -385,28 +410,34 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		_generate_shortcode_form: function( elem_obj, formdata, add=true ) {
 			var uid = THIS._generate_uid();
 			var element = elem_obj.element_thumb().id;
+			var visualData = {};
 			var params = ' type="'+ element +'"';
 			params = ' id="'+uid+'"';
 			formdata.forEach(function(data) {
 				params += ' '+ data.name + '="'+ data.value+'"';
+				visualData[data.name] = data.value;
 			})
-			shortcode = '['+ CODEKEY +' '+ params +'][/'+ CODEKEY +']';
+			shortcode = '['+ CODEKEY +':element="'+element+'" '+ params +'][/'+ CODEKEY +']';
 			// Add shortcode on codeslist.
 			$(SELECTORS.CODESLIST).append(shortcode);
 			// Add selements visual output for userinterface.
             // console.log(THIS._rendertemplate( elem_obj.element_output()));
-            var visualcontent = {
-        							output: THIS._rendertemplate( elem_obj.element_output() ).get('outerHTML') , 
-            						id: element,
-            						BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
-
-            					};
-			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
-
+			THIS._update_visual_content(element, uid, elem_obj, params, visualData);
 			if (add == true) {
 			} else {
 			}
 			ELEMENTS_DIALOGUE.hide();
+		},
+
+		// TODO: Need to update the content
+		_update_visual_content: function(element, uid, elem_obj, params, visualData ) {
+			var visualcontent = {
+				output: THIS._rendertemplate( elem_obj.element_output(), visualData ).get('outerHTML'),
+				id: element,
+				BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
+			};
+			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
+
 		},
 
 		_generate_uid: function() {
@@ -431,134 +462,4 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 	});
 
 
-
-function Row() {
-
-}
-
-Row.prototype = {
-
-	addtitle: 'Add Row',
-
-	element_thumb: function() {
-		return {id: 'row', icon: 'fa fa-list', title: 'Row'};
-	},
-
-	element_output: function() {
-		return '<div class="{{CSS_ATTR.ADDEDELEMENTCLASS}}">' +
-					'<div class="row-bar col col-md-12">' +
-						'<p class="bar-content">' +
-							'<div class="left-options">' +
-								'<ul class="column-counts" >' +
-									'<li data-col="1"> 1 column </li>' +
-									'<li data-col="2"> 2 column </li>' +
-									'<li data-col="3"> 3 column </li>' +
-									'<li data-col="4"> 4 column </li>' +
-								'</ul>' +
-							'</div>' +							
-						'</p>' +
-						'<div class="row-elements">' +
-							'<div class="row-contents"></div>' +
-							'<div id="addelement">' +
-								'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i> </a>' +
-							'</div>' +
-						'</div>' +
-					'</div>' +
-				'</div>';
-	},
-
-	element_event_register: function(element) {
-
-	},
-
-
-	form_fields: function() {
-		return {
-			tabs: [
-				{
-					name: 'general',
-					title: 'General', // M.utill.get_string();
-					fields: [
-						{
-							name: 'row_height',
-							title: 'Row Height',
-							type: 'select',
-							temp: 'SELECT',
-							"default": '1',
-							options: [
-								{value: 'default', title: 'Default from Theme Options'},
-								{value: 'auto', title: 'Equals the content height'},
-								{value: 'small', title: 'Small'},
-								{value: 'medium', title: 'Medium'},
-								{value: 'large', title: 'Large'},
-								{value: 'huge', title: 'Huge'},
-								{value: 'full', title: 'Full Screen'},
-							]
-						},
-						{
-							name: 'width',
-							title: 'Full width content',
-							type: 'checkbox',
-							temp: 'CHECKBOX',
-							"default": '0',
-							options: [
-								{value: 1, title: 'Stretch content of this row to the screen width'}
-							]
-
-						},
-						{
-							name: 'bg_video',
-							title: 'Background Video',
-							type: 'text',
-							temp: 'TEXT',
-							"default": '',
-							placeholder: ''
-						}
-					]
-				}
-			]
-
-		};
-	}
-};
-
-
-
-function Column() {
-
-}
-
-Column.prototype = {
-
-
-	element_thumb: function() {
-		return {id: 'column', icon: 'fa fa-columns', title: 'Column'};
-	},
-
-	element_output: function() {
-		return "";
-	},
-
-	element_event_register: function() {
-
-	},
-
-	thumb_output: function() {
-		return '<div class="column-thumb {{CSS_ATTR.ELEMENTTHUMB}}">' +
-			'<div class="img-block">' +
-				'<i class="fa fa-column"></i>' +
-			'</div>' +
-			'<div class="element-title">' +
-				'<span>Column</span>' +
-			'</div>' +
-		'</div>';
-	},
-
-	form_fields: function() {
-		return [];
-	}
-};
-
-
-
-}, '@VERSION@', {"requires": ["moodle-editor_atto-plugin"]});
+}, '@VERSION@', {"requires": ["moodle-editor_atto-plugin", "acebuilder_element_header"]});

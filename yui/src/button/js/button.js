@@ -142,7 +142,7 @@
 
 	BUILDER_DIALOGUE, ELEMENTFORM_DIALOGUE, ELEMENTS_DIALOGUE, SELECTION_DATA;
 
-	Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
+	Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [Row], {
 
 		_selected_point: null,
 
@@ -174,7 +174,6 @@
 
 			if (this._selected_point.length) {
 				for (var i=0; i < this._selected_point.length; i++ ) {
-
 					SELECTION_DATA = this._selected_point[i].startContainer.data;
 					// console.log(SELECTION_DATA);
 					if ( typeof SELECTION_DATA != undefined && SELECTION_DATA != null && SELECTION_DATA.includes('[LMSACEBUILDER]') ) {
@@ -235,7 +234,6 @@
 					element_item_code += elementslist[0];
                     // $(SELECTORS.CODESLIST).append(element_item_code);
 					// msg += 'Next match starts at ' + shortcoderegex.lastIndex;
-					
 				}
                 return element_item_code;
 			}
@@ -319,6 +317,9 @@
 					THIS._generate_shortcode_form( elem_obj, data );
 				}, SELECTORS.ELEMENTFORM, THIS );
 			});
+			if (formfields.all(".form-parent-wrapper").length == 0) {
+				THIS._generate_shortcode_form( elem_obj, {} );
+			}
 			// formfields.all(SELECTORS.ELEMENTFORM).on('submit', function(e) {
 			// 	e.preventDefault();
 			// 	console.log( $(SELECTORS.ELEMENTFORM).serializeArray() );
@@ -349,7 +350,10 @@
 				for (let i=0; i < avail_elements.length; i++ ) {
 					var element = avail_elements[i];
 					// var elem_obj = new Y.Base.mix(Y.M.atto_lmsace.Button, [eval(element)]);
-					var elem_obj = eval(element);
+					var elem_obj = M.aceaddon_builder[element].init();
+					// alert();
+
+					// var elem_obj = eval(element);
 					var element_thumb = { DATA: elem_obj.prototype.element_thumb() };
                     console.log(element_thumb);
 					var elementtemplate = this_obj._rendertemplate( TEMPLATES.THUMBBOX, element_thumb );
