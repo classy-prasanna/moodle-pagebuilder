@@ -63,8 +63,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 						'</div>'+
 					'</div>'+
 					'<div class="code-tab" > '+
-						'<div class="codes-list" id="{{CSS_ATTR.CODESLIST}}" > {{codelist}}' +                            
-						'</div>' +
+						'<textarea class="codes-list" id="{{CSS_ATTR.CODESLIST}}" >{{codelist}}' +                            
+						'</textarea>' +
 					'</div>' +
 					'<div class="save-button-layout">' +
 						'<input type="button" id="{{CSS_ATTR.SAVELAYOUT}}" value="Save" >' +
@@ -129,9 +129,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
                         '<p class="edit-element-item" data-func="delete_element_item" data-elementid="{{id}}" data-codeuid="{{uid}}" > Delete </p> '+
                         '</div> ',
 
-        ELEMENT_ITEM_DIV: '<div class="lmsace-builder-item element-{{id}}" id="{{id}}" data-elementid="{{id}}">'+
+        ELEMENT_ITEM_DIV: '<div class="lmsace-builder-item element-{{id}}" id="{{uid}}" data-elementid="{{id}}">'+
                             '<div class="builder-item-options"> {{{BUILDERITEMTOPTIONS}}} </div>' + 
-                            '<div class="builder-maincontnt" > {{{output}}}</div></div>',
+                            '<div class="builder-maincontnt" > {{{output}}}</div>'+
+							'<input name="element-shortcode" type="hidden" value="{{shortcode}}"> </div>',
 
 		SHORTCODE: '[LMSACE:element={{element}} '+
 			'{{#params}}' +
@@ -233,10 +234,18 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				BUILDER_DIALOGUE = this.getDialogue();
 			}
 			BUILDER_DIALOGUE.set('headerContent', 'LMSACE Builder' );
+
 			BUILDER_DIALOGUE.set('width', '80%');
 			BUILDER_DIALOGUE.set('bodyContent', bodycontent );
 
 			BUILDER_DIALOGUE.show();
+
+			this._dialogue = null; // Make previous dialogue null to open new one.
+			ELEMENTS_DIALOGUE = this.getDialogue({
+				headerContent: 'Elements list', // M.util.get_string('builderheading', component).
+				width: '50%',
+				focusAfterHide: null
+			});
 			this._registerformfields();
 		},
 
@@ -262,11 +271,13 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			return visual_output;
 		},
 
+		// Load visual body and short code from selection when open the button with selection.
 		_load_shortcode_visual_body: function() {
 			if (SELECTION_DATA != null) {
 
 				var visualcontent = '', shortcodes = '';
 				var shortcoderegex = /\[LMSACE:(.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
+				var uid = 1;
 				while ((elementslist = shortcoderegex.exec(SELECTION_DATA)) !== null) {
 					shortcodes += elementslist[0];
 					var visualData = {};
@@ -286,6 +297,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 						// Update the visual content for the shortcode. in visual body.
 						var elem_obj =  ELEMENTS[elementType];
 						var visualparams = THIS._render_visual_content( elementType, visualData['id'], elem_obj, params, visualData);
+						visualparams.uid = uid;
 						visualcontent += THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualparams ).get('outerHTML');
 					}
 				}
@@ -293,7 +305,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 				visual_output.one(SELECTORS.ELEMENTADDED).append(visualcontent);
 				// Update the shortcodes in the shortcode list.
-				$(SELECTORS.CODESLIST).html(shortcodes);
+				$(SELECTORS.CODESLIST).val(shortcodes);
 
                 return true;
 			}
@@ -334,36 +346,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		},
 
-		_triggerEditElement: function(editElement) {
-			var type = editElement.attr('data-elementid');
-			if (typeof ELEMENTS[type]  != "undefined") {
-				var elem_obj = ELEMENTS[type];
-
-				ELEMENTS_DIALOGUE = this.getDialogue({
-					headerContent: elem_obj.element_thumb().title
-				})
-
-				var formcontent = Y.Node.create('<div class="element-form-dialogue"></div>');
-
-				require(['jquery', 'core/fragment'], function($, Fragment) {
-					// alert(self.contextid)
-					Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type } ).then((html, js) => {
-						var domNode = formcontent.getDOMNode();
-                    	domNode.innerHTML = html;
-						domNode.all(".element-form-dialogue form.mform").each(function(form) {
-							form.delegate('submit', function(e) {
-								e.preventDefault();
-								var data = $(SELECTORS.ELEMENTFORM).serializeArray();
-								THIS._generate_shortcode_form( elem_obj, data );
-							}, SELECTORS.ELEMENTFORM, THIS );
-						});
-						ELEMENTS_DIALOGUE.set('bodyContent', domNode).show();
-					})
-				})
-			}
-		},
-
-        // Register the form input fields.
+		// Register the form input fields.
 		_registerformfields: function() {
 			// console.log(TEMPLATES.FORM_FIELDS);
 			for ( var key in TEMPLATES.FORM_FIELDS) {
@@ -389,7 +372,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				THIS._generate_shortcode_form( elem_obj, {} );
 				return;
 			}
-			self._triggerEditElement(elem_obj);
+			var type = elem_obj.element_thumb().id;
+			self._triggerElementDialogue( type, elem_obj);
 			/* var formfields = THIS._rendertemplate( TEMPLATES.FORM, elem_obj.form_fields() );
 
 			formfields.all(".form-parent-wrapper").each(function(form) {
@@ -404,6 +388,84 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			    this._update_dialogue_content(elem_obj.element_thumb().title, formfields);
             } */
 		},
+		_triggerEditElement: function(editElement) {
+			var type = editElement.attr('data-elementid');
+			if (typeof ELEMENTS[type]  != "undefined") {
+				var elem_obj = ELEMENTS[type];
+				_triggerElementDialogue(type, elem_obj);
+			}
+		},
+
+		_triggerElementDialogue: function(type, elem_obj) {
+			var headerContent= elem_obj.element_thumb().title
+			var formcontent = Y.Node.create('<div class="element-form-dialogue"></div>');
+
+			require(['jquery', 'core/fragment'], function($, Fragment) {
+				// alert(self.contextid)
+				Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type } ).then((html, js) => {
+					formcontent.setHTML(html);
+					formcontent.all("form.mform").each(function(form) {
+						console.log(form);
+						form.on('submit', function(e) {
+							e.preventDefault();
+							var formid = e.target.get('id');
+							var data = $('#'+formid).serializeArray();
+							console.log(data);
+							THIS._convertFormToCode( elem_obj, data );
+						}, SELECTORS.ELEMENTFORM, THIS );
+					});
+
+					ELEMENTS_DIALOGUE
+						.set('bodyContent', formcontent)
+						.set('headerContent', headerContent)
+						.show();
+				})
+			})
+		},
+		/**
+		 * Generate shortcode from the element form options,
+		 */
+		 _convertFormToCode: function( elem_obj, formdata, add=true ) {
+			var uid = THIS._generate_uid();
+			var element = elem_obj.element_thumb().id;
+			var visualData = {};
+			var params = ' type="'+ element +'"';
+			params = ' id="'+uid+'"';
+			formdata.forEach(function(data) {
+				params += ' '+ data.name + '="'+ data.value+'"';
+				visualData[data.name] = data.value;
+			})
+			shortcode = '['+ CODEKEY +':element="'+element+'" '+ params +'][/'+ CODEKEY +']';
+			// Add shortcode on codeslist.
+			// $(SELECTORS.CODESLIST).append(shortcode);
+			// Add selements visual output for userinterface.
+            // console.log(THIS._rendertemplate( elem_obj.element_output()));
+			var visualcontent = THIS._render_visual_content(element, uid, elem_obj, params, visualData);
+			visualcontent.shortcode = shortcode;
+			this._update_visual_content(visualcontent);
+			
+			ELEMENTS_DIALOGUE.hide();
+			BUILDER_DIALOGUE.focus();
+		},
+
+		
+		_render_visual_content: function(element, uid, elem_obj, shortcode, params, visualData ) {
+			var visualcontent = {
+				output: THIS._rendertemplate( elem_obj.element_output(), visualData ).get('outerHTML'),
+				id: element,
+				BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
+			};
+			return visualcontent;
+		},
+
+		_update_visual_content: function(visualcontent) {
+			console.log(visualcontent);
+			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
+		},
+
+		_generate_uid: function() {
+			return 'yui_' + Date.now();
+		},       
 
 		/**
 		 * Update the dialogue body content.
@@ -427,7 +489,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					var elementtemplate = this_obj._rendertemplate( TEMPLATES.THUMBBOX, element_thumb );
 					elem_obj.element_event_register( elementtemplate );
 					THUMBLIST.append( elementtemplate );
-					console.log(Object.getPrototypeOf(elem_obj));
+					
 					ELEMENTS[ element.toLowerCase() ] = Object.getPrototypeOf(elem_obj);
 					// console.log(ELEMENTS);
 				}
@@ -453,53 +515,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				ELEMENTS_DIALOGUE.set('headerContent', 'Elements List');
 			}
 			ELEMENTS_DIALOGUE.show();
-			
+
 		},
 
-		/**
-		 * Generate shortcode from the element form options,
-		 */
-		_generate_shortcode_form: function( elem_obj, formdata, add=true ) {
-			var uid = THIS._generate_uid();
-			var element = elem_obj.element_thumb().id;
-			var visualData = {};
-			var params = ' type="'+ element +'"';
-			params = ' id="'+uid+'"';
-			formdata.forEach(function(data) {
-				params += ' '+ data.name + '="'+ data.value+'"';
-				visualData[data.name] = data.value;
-			})
-			shortcode = '['+ CODEKEY +':element="'+element+'" '+ params +'][/'+ CODEKEY +']';
-			// Add shortcode on codeslist.
-			$(SELECTORS.CODESLIST).append(shortcode);
-			// Add selements visual output for userinterface.
-            // console.log(THIS._rendertemplate( elem_obj.element_output()));
-			var visualcontent = THIS._render_visual_content(element, uid, elem_obj, params, visualData);
-			this._update_visual_content(visualcontent);
-
-			if (add == true) {
-			} else {
-			}
-			ELEMENTS_DIALOGUE.hide();
-			BUILDER_DIALOGUE.focus();
-		},
-
-		// TODO: Need to update the content
-		_render_visual_content: function(element, uid, elem_obj, params, visualData ) {
-			var visualcontent = {
-				output: THIS._rendertemplate( elem_obj.element_output(), visualData ).get('outerHTML'),
-				id: element,
-				BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
-			};
-			return visualcontent;
-		},
-		_update_visual_content: function(visualcontent) {
-			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
-		},
-
-		_generate_uid: function() {
-			return 'yui_' + Date.now();
-		},
+		
 
 		_insert_builder_content: function() {
 			var codelist = $(SELECTORS.CODESLIST).html();
