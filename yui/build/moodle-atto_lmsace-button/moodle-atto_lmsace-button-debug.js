@@ -15,7 +15,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 	visual_output = '', // Compiled visual output template.
 
-	THIS = null,
+	THIS = null, self = null,
 
 	CODEKEY = 'LMSACE', // sHORTCODE KEY.
 
@@ -148,6 +148,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		_host: null,
 
+		selectedNode: null,
+
+		contextid: null,
+
         // #1. 
 		initializer: function() {
 			this._host = this.get('host');
@@ -158,6 +162,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				callback: this.show_builder
 			});
 			THIS = this;
+			self = this;
 
 			// Highlight the buttons.
 			this.get('host').on('atto:selectionchanged', function() {
@@ -171,16 +176,14 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		isBuilderContent: function() {
 
-			var selectedNode = this.get('host').getSelectionParentNode();
 			this._selected_point = this.get('host').getSelection();
 
-			if (!selectedNode) {
+			if (!this._selected_point) {
 				return false;
 			}
 
 			if (this._selected_point.length) {
 				for (var i=0; i < this._selected_point.length; i++ ) {
-
 					SELECTION_DATA = this._selected_point[i].startContainer.data;
 					console.log(SELECTION_DATA);
 					if ( typeof SELECTION_DATA != undefined && SELECTION_DATA != null && (SELECTION_DATA.includes('[LMSACEBUILDER]') || SELECTION_DATA.includes('[LMSACE]'))) {
@@ -195,25 +198,34 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
          * Show builder popup.
          */
 		show_builder: function() {
-			bodycontent = codeslist = null;
-			this._loadAllElements();
 
+			var bodycontent = codeslist = null;
+			var visualUpdated = false;
+			this.contextid = this.get('contextid');
+
+			this._loadAllElements();			
+
+			var codes = this.get('host').getSelectedNodes();			
+			this.selectedNode = codes.item(0);
 			// generate and load body content from selection data.
 			this._selected_point = this.get('host').getSelection();
 
 			if (this._selected_point.length) {
-				for (var i=0; i < this._selected_point.length; i++ ) {
+				for ( var i=0; i < this._selected_point.length; i++ ) {
 
 					SELECTION_DATA = this._selected_point[i].startContainer.data;
 					console.log(SELECTION_DATA);
 					if ( typeof SELECTION_DATA != undefined && SELECTION_DATA != null && SELECTION_DATA.includes('[LMSACEBUILDER]') ) {
-						// bodycontent = 
-                        codeslist = this._load_shortcode_visual_body();
+                        visualUpdated = this._load_shortcode_visual_body();
 					}
 				}
 			}
 
-            bodycontent = this.build_dialogue_body(codeslist);
+			if (visualUpdated) {
+				bodycontent = visual_output;
+			} else {
+            	bodycontent = this.build_dialogue_body(codeslist);
+			}
 
 			// Builder dialogue.
 			if ( BUILDER_DIALOGUE == null ) {
@@ -226,7 +238,6 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 			BUILDER_DIALOGUE.show();
 			this._registerformfields();
-			
 		},
 
 
@@ -253,28 +264,38 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		_load_shortcode_visual_body: function() {
 			if (SELECTION_DATA != null) {
-				// shortcoderegex = /\[LMSACE (.+?)?\](?:(.+?)?\[\/LMSACE\])?/g;
-				// elementslist = SELECTION_DATA.match(shortcodere);
-				// console.log(elementslist);
-                var element_item_code = '';
+
+				var visualcontent = '', shortcodes = '';
 				var shortcoderegex = /\[LMSACE:(.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
 				while ((elementslist = shortcoderegex.exec(SELECTION_DATA)) !== null) {
-					element_item_code += elementslist[0];
-					var params = {};
+					shortcodes += elementslist[0];
+					var visualData = {};
+					var params = '';
 					typeRex = /\[LMSACE:element="([^"]*)"/g;
 					var elementType = typeRex.exec(elementslist[0]);
 					if (elementType !== null && typeof elementType[1] != 'undefined' ) {
 						elementType = elementType[1];
 						var paramRegex = /([\w-]+)="([^"]*)"/g;
-						while ((m = paramRegex.exec(str)) !== null) {
-							params[ m[1] ] = m[2];
+						while ((m = paramRegex.exec(elementslist[0])) !== null) {
+							visualData[ m[1] ] = m[2];
+							params += ' '+ m[1] + '="'+ m[2] +'"';
 						}
-						THIS._rendertemplate( ELEMENTS[elementType].form_fields(), params );
-						THIS._update_visual_content(element, uid, elem_obj, params, visualData);
-						// TODO
+
+						if (typeof ELEMENTS[elementType] == "undefined") continue;
+
+						// Update the visual content for the shortcode. in visual body.
+						var elem_obj =  ELEMENTS[elementType];
+						var visualparams = THIS._render_visual_content( elementType, visualData['id'], elem_obj, params, visualData);
+						visualcontent += THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualparams ).get('outerHTML');
 					}
 				}
-                return element_item_code;
+				this.build_dialogue_body(shortcodes);
+
+				visual_output.one(SELECTORS.ELEMENTADDED).append(visualcontent);
+				// Update the shortcodes in the shortcode list.
+				$(SELECTORS.CODESLIST).html(shortcodes);
+
+                return true;
 			}
  		},
 
@@ -306,6 +327,40 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					THIS._add_selected_element( elem_obj );
 				});
 			});
+
+			$('body').delegate(SELECTORS.EDITITEM, 'click', function() {
+				self._triggerEditElement($(this));
+			});
+
+		},
+
+		_triggerEditElement: function(editElement) {
+			var type = editElement.attr('data-elementid');
+			if (typeof ELEMENTS[type]  != "undefined") {
+				var elem_obj = ELEMENTS[type];
+
+				ELEMENTS_DIALOGUE = this.getDialogue({
+					headerContent: elem_obj.element_thumb().title
+				})
+
+				var formcontent = Y.Node.create('<div class="element-form-dialogue"></div>');
+
+				require(['jquery', 'core/fragment'], function($, Fragment) {
+					// alert(self.contextid)
+					Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type } ).then((html, js) => {
+						var domNode = formcontent.getDOMNode();
+                    	domNode.innerHTML = html;
+						domNode.all(".element-form-dialogue form.mform").each(function(form) {
+							form.delegate('submit', function(e) {
+								e.preventDefault();
+								var data = $(SELECTORS.ELEMENTFORM).serializeArray();
+								THIS._generate_shortcode_form( elem_obj, data );
+							}, SELECTORS.ELEMENTFORM, THIS );
+						});
+						ELEMENTS_DIALOGUE.set('bodyContent', domNode).show();
+					})
+				})
+			}
 		},
 
         // Register the form input fields.
@@ -334,7 +389,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				THIS._generate_shortcode_form( elem_obj, {} );
 				return;
 			}
-			var formfields = THIS._rendertemplate( TEMPLATES.FORM, elem_obj.form_fields() );
+			self._triggerEditElement(elem_obj);
+			/* var formfields = THIS._rendertemplate( TEMPLATES.FORM, elem_obj.form_fields() );
 
 			formfields.all(".form-parent-wrapper").each(function(form) {
 				form.delegate('submit', function(e) {
@@ -343,16 +399,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					THIS._generate_shortcode_form( elem_obj, data );
 				}, SELECTORS.ELEMENTFORM, THIS );
 			});
-			// formfields.all(SELECTORS.ELEMENTFORM).on('submit', function(e) {
-			// 	e.preventDefault();
-			// 	console.log( $(SELECTORS.ELEMENTFORM).serializeArray() );
-			// 	console.log( e );
-			// 	THIS._generate_shortcode_form( elem_obj.element_thumb().id, $(this).serializeArray() );
-			// });
-			// ELEMENTS_DIALOGUE.hide();
+
             if ( elem_obj.form_fields() != "") {
-			    this._update_dialogue_content(elem_obj.addtitle, formfields);
-            }
+			    this._update_dialogue_content(elem_obj.element_thumb().title, formfields);
+            } */
 		},
 
 		/**
@@ -360,8 +410,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		 */
 		_update_dialogue_content: function(title, bodycontent, width=50) {
 			ELEMENTS_DIALOGUE.set('bodyContent', bodycontent)
-			ELEMENTS_DIALOGUE.set('headerContent', title)
-				.show();
+			ELEMENTS_DIALOGUE.set('headerContent', title).show();
+			// ELEMENTS_DIALOGUE.update();
 			$(SELECTORS.TABCONTENT).find('.tab-pane:first').addClass('active');
 		},
 
@@ -395,13 +445,15 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				ELEMENTS_DIALOGUE = this.getDialogue({
 					headerContent: 'Elements list', // M.util.get_string('builderheading', component).
 					width: '50%',
-					bodyContent: THUMBLIST
+					bodyContent: THUMBLIST,
+					focusAfterHide: null
 				});
 			} else {
 				ELEMENTS_DIALOGUE.set('bodyContent', THUMBLIST);
 				ELEMENTS_DIALOGUE.set('headerContent', 'Elements List');
 			}
 			ELEMENTS_DIALOGUE.show();
+			
 		},
 
 		/**
@@ -422,22 +474,27 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			$(SELECTORS.CODESLIST).append(shortcode);
 			// Add selements visual output for userinterface.
             // console.log(THIS._rendertemplate( elem_obj.element_output()));
-			THIS._update_visual_content(element, uid, elem_obj, params, visualData);
+			var visualcontent = THIS._render_visual_content(element, uid, elem_obj, params, visualData);
+			this._update_visual_content(visualcontent);
+
 			if (add == true) {
 			} else {
 			}
 			ELEMENTS_DIALOGUE.hide();
+			BUILDER_DIALOGUE.focus();
 		},
 
 		// TODO: Need to update the content
-		_update_visual_content: function(element, uid, elem_obj, params, visualData ) {
+		_render_visual_content: function(element, uid, elem_obj, params, visualData ) {
 			var visualcontent = {
 				output: THIS._rendertemplate( elem_obj.element_output(), visualData ).get('outerHTML'),
 				id: element,
 				BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
 			};
+			return visualcontent;
+		},
+		_update_visual_content: function(visualcontent) {
 			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
-
 		},
 
 		_generate_uid: function() {
@@ -446,16 +503,35 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		_insert_builder_content: function() {
 			var codelist = $(SELECTORS.CODESLIST).html();
-			this.get('host').setSelection(this._selected_point);
-			codelist = '[LMSACEBUILDER]' + codelist + '[/LMSACEBUILDER]';
-			this.get('host').insertContentAtFocusPoint(codelist);
+			console.log(codelist);
+			var host = this.get('host');
 			BUILDER_DIALOGUE.hide();
+			host.focus();
+			this.editor.focus();
+			// host.restoreSelection();
+			host.restoreSelection();
+			if (this.selectedNode) {
+				var selection = host.getSelectionFromNode(this.selectedNode);
+				// console.log(selection);
+				this.get('host').setSelection(selection);
+			} else {
+				host.setSelection(this._selected_point);
+			}
+			
+			// Focus on the previous selection.
+			codelist = '[LMSACEBUILDER]' + codelist + '[/LMSACEBUILDER]';
+			host.insertContentAtFocusPoint(codelist);
+			this.markUpdated();
 		}
 
 	}, {
 		ATTRS: {
 
 			elements: {
+				value: null
+			},
+
+			contextid: {
 				value: null
 			}
 		}
