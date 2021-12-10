@@ -27,7 +27,7 @@ function atto_lmsace_output_fragment_getform($args) {
 	global $CFG;
 	if ($args['context']) {
 		$elementtype = $args['element'];
-		$formdata = $args['formdata'];
+		$formdata = json_decode($args['formdata']);
 		require_once($CFG->dirroot.'/local/acetools/addons/builder/lib.php');
 		$form = aceaddon_builder_edit_form($elementtype, $formdata);
 		return $form;

@@ -27,8 +27,12 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		CODESLIST: 'codes-list',
 		BUTTONSAVE: 'button-save',
 		SAVELAYOUT: 'save_layout',
-		CANCELLAYOUT: 'cancel_layout',        
+		CANCELLAYOUT: 'cancel_layout',
         EDITITEM: 'edit_element_item',
+		ELEMENTSHORTCODE: 'element-shortcode',
+		ELEMENTITEM: 'lmsace-builder-item',
+		VISUALTAB: 'visual-tab',
+		EDITINGMOVE: 'editing_move',
 	},
 
 	SELECTORS = {
@@ -42,6 +46,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		SAVELAYOUT: '#' + CSS_ATTR.SAVELAYOUT,
 		CANCELLAYOUT: '#' + CSS_ATTR.CANCELLAYOUT,
         EDITITEM: '[data-func="'+ CSS_ATTR.EDITITEM +'"]',
+		ELEMENTSHORTCODE: 'input[name="'+ CSS_ATTR.ELEMENTSHORTCODE+'"]',
+		ELEMENTITEM: '.' + CSS_ATTR.ELEMENTITEM,
+		EDITINGMOVE: '.editing_move',
+		VISUALTAB: '.' + CSS_ATTR.VISUALTAB,
 	},
 
 	TEMPLATES = {
@@ -56,14 +64,14 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					'</div>',
 		VISUALLAYOUT: '<div id="lmsbuilder-visual" >'+
 					'<div class="visual-tab">'+
-						'<div class="elements-list" id="{{CSS_ATTR.ELEMENTADDED}}" >' +
-						'</div>' +
+						'<ul class="elements-list" id="{{CSS_ATTR.ELEMENTADDED}}" >' +
+						'</ul>' +
 						'<div id="addelement">'+
 							'<a href="javascript:void(0);" class="add-element-icon"> <i class="fa fa-plus"></i></a>'+
 						'</div>'+
 					'</div>'+
 					'<div class="code-tab" > '+
-						'<textarea class="codes-list" id="{{CSS_ATTR.CODESLIST}}" >{{codelist}}' +                            
+						'<textarea class="codes-list" id="{{CSS_ATTR.CODESLIST}}" >{{codelist}}' +
 						'</textarea>' +
 					'</div>' +
 					'<div class="save-button-layout">' +
@@ -129,10 +137,11 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
                         '<p class="edit-element-item" data-func="delete_element_item" data-elementid="{{id}}" data-codeuid="{{uid}}" > Delete </p> '+
                         '</div> ',
 
-        ELEMENT_ITEM_DIV: '<div class="lmsace-builder-item element-{{id}}" id="{{uid}}" data-elementid="{{id}}">'+
-                            '<div class="builder-item-options"> {{{BUILDERITEMTOPTIONS}}} </div>' + 
+        ELEMENT_ITEM_DIV: '<li class="lmsace-builder-item element-{{id}}" id="{{uid}}" data-elementid="{{id}}">'+
+							'<span class="editing_move"><i class="icon fa fa-arrows fa-fw iconsmall"></i></span>'+
+                            '<div class="builder-item-options"> {{{BUILDERITEMTOPTIONS}}} </div>' +
                             '<div class="builder-maincontnt" > {{{output}}}</div>'+
-							'<input name="element-shortcode" type="hidden" value="{{shortcode}}"> </div>',
+							'<input name="element-shortcode" type="hidden" value="{{shortcode}}"> </li>',
 
 		SHORTCODE: '[LMSACE:element={{element}} '+
 			'{{#params}}' +
@@ -142,6 +151,102 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 	},
 
 	BUILDER_DIALOGUE, ELEMENTFORM_DIALOGUE, ELEMENTS_DIALOGUE, SELECTION_DATA;
+
+
+	var DRAGREORDER = function () {
+		DRAGREORDER.superclass.constructor.apply(this, arguments);
+	};
+
+	Y.extend(DRAGREORDER, M.core.dragdrop, {
+
+		initializer: function() {
+			this.groups = ['resource'];
+
+
+			this.samenodeclass = CSS_ATTR.ELEMENTITEM;
+        	this.parentnodeclass = CSS_ATTR.VISUALTAB;
+
+			// Go through all sections
+			this.setup_for_section();
+
+			var del = new Y.DD.Delegate({
+				container: SELECTORS.VISUALTAB,
+				nodes: SELECTORS.ELEMENTITEM,
+				target: true,
+				handles: [SELECTORS.EDITINGMOVE],
+				dragConfig: {groups: this.groups}
+			});
+			console.log(del);
+			
+
+			del.dd.plug(Y.Plugin.DDProxy, {
+				// Don't move the node at the end of the drag
+				moveOnEnd: false,
+				cloneNode: true
+			});
+			del.dd.plug(Y.Plugin.DDConstrained, {
+				// Keep it inside the .mod-quiz-edit-content
+				constrain: SELECTORS.VISUALTAB
+			});
+			del.dd.plug(Y.Plugin.DDWinScroll);
+		},
+
+		/**
+		 * Apply dragdrop features to the specified selector or node that refers to section(s)
+		 *
+		 * @method setup_for_section
+		 * @param {String} baseselector The CSS selector or node to limit scope to
+		 */
+		setup_for_section: function() {
+			Y.Node.all('#lmsbuilder-visual .visual-tab ul.elements-list').each(function(resources) {
+				resources.setAttribute('data-draggroups', this.groups.join(' '));
+				// Define empty ul as droptarget, so that item could be moved to empty list
+				new Y.DD.Drop({
+					node: resources,
+					groups: this.groups,
+					padding: '20 0 20 0'
+				});
+	
+				// Initialise each resource/activity in this section
+				this.setup_for_resource('li.lmsace-builder-item');
+			}, this);
+		},
+	
+		/**
+		 * Apply dragdrop features to the specified selector or node that refers to resource(s)
+		 *
+		 * @method setup_for_resource
+		 * @param {String} baseselector The CSS selector or node to limit scope to
+		 */
+		setup_for_resource: function(baseselector) {
+			Y.Node.all(baseselector).each(function(resourcesnode) {
+				// Replace move icons.
+				var move = resourcesnode.one('span.' + CSS_ATTR.EDITINGMOVE);
+				if (move) {
+					var resourcedraghandle = this.get_drag_handle(
+						M.util.get_string('move', 'moodle'),
+						CSS_ATTR.EDITINGMOVE,
+						'iconsmall',
+						true
+					);
+					move.replace(resourcedraghandle);
+				}
+			}, this);
+		},
+
+		drop_hit: function(e) {
+			self._updateShortCodeList();
+		}
+
+	}, {
+		NAME: 'atto_lmsace-dragdrop-reorder',
+		ATTRS: {}
+	});
+
+	M.atto_lmsace = M.atto_lmsace || {};
+	M.atto_lmsace.dragdrop_reorder = function(params) {
+		return new DRAGREORDER(params);
+	};
 
 	Y.namespace('M.atto_lmsace').Button = Y.Base.create('button', Y.M.editor_atto.EditorPlugin, [], {
 
@@ -153,7 +258,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		contextid: null,
 
-        // #1. 
+        // #1.
 		initializer: function() {
 			this._host = this.get('host');
 			this.addButton({
@@ -204,9 +309,9 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			var visualUpdated = false;
 			this.contextid = this.get('contextid');
 
-			this._loadAllElements();			
+			this._loadAllElements();
 
-			var codes = this.get('host').getSelectedNodes();			
+			var codes = this.get('host').getSelectedNodes();
 			this.selectedNode = codes.item(0);
 			// generate and load body content from selection data.
 			this._selected_point = this.get('host').getSelection();
@@ -234,10 +339,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				BUILDER_DIALOGUE = this.getDialogue();
 			}
 			BUILDER_DIALOGUE.set('headerContent', 'LMSACE Builder' );
-
 			BUILDER_DIALOGUE.set('width', '80%');
 			BUILDER_DIALOGUE.set('bodyContent', bodycontent );
-
 			BUILDER_DIALOGUE.show();
 
 			this._dialogue = null; // Make previous dialogue null to open new one.
@@ -247,6 +350,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 				focusAfterHide: null
 			});
 			this._registerformfields();
+			self._initDragDrop();
 		},
 
 
@@ -268,6 +372,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
                 dataset = this.get('dataset');
             }, SELECTORS.EDITITEM);
 
+			
+
 			return visual_output;
 		},
 
@@ -277,8 +383,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 				var visualcontent = '', shortcodes = '';
 				var shortcoderegex = /\[LMSACE:(.+?)?\]?(.+?)?(\[\/LMSACE\])/g;
-				var uid = 1;
 				while ((elementslist = shortcoderegex.exec(SELECTION_DATA)) !== null) {
+					var uid = THIS._generate_uid();
 					shortcodes += elementslist[0];
 					var visualData = {};
 					var params = '';
@@ -296,14 +402,16 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 						// Update the visual content for the shortcode. in visual body.
 						var elem_obj =  ELEMENTS[elementType];
-						var visualparams = THIS._render_visual_content( elementType, visualData['id'], elem_obj, params, visualData);
+						var visualparams = THIS._render_visual_content( elementType, uid, elem_obj, JSON.stringify(visualData), visualData);
 						visualparams.uid = uid;
+						visualparams.shortcode = elementslist[0];
 						visualcontent += THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualparams ).get('outerHTML');
+						
 					}
 				}
 				this.build_dialogue_body(shortcodes);
-
 				visual_output.one(SELECTORS.ELEMENTADDED).append(visualcontent);
+				
 				// Update the shortcodes in the shortcode list.
 				$(SELECTORS.CODESLIST).val(shortcodes);
 
@@ -331,7 +439,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		_register_editevent: function() {
 			// one("[data-elementid=" + elem_obj.element_thumb().id + "]");
 			THUMBLIST.all(SELECTORS.ELEMENTTHUMB).each(function(thumb) {
-				// console.log(thumb);
+				console.log(thumb);
 				thumb.on('click', function(e) {
 					e.preventDefault();
 					var id = this.getAttribute('data-elementid');
@@ -343,7 +451,6 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			$('body').delegate(SELECTORS.EDITITEM, 'click', function() {
 				self._triggerEditElement($(this));
 			});
-
 		},
 
 		// Register the form input fields.
@@ -390,20 +497,26 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		},
 		_triggerEditElement: function(editElement) {
 			var type = editElement.attr('data-elementid');
+			var uid = editElement.attr('data-codeuid');
+			var params = editElement.attr('data-params');
 			if (typeof ELEMENTS[type]  != "undefined") {
 				var elem_obj = ELEMENTS[type];
-				_triggerElementDialogue(type, elem_obj);
+				self._triggerElementDialogue(type, elem_obj, uid, params);
 			}
 		},
 
-		_triggerElementDialogue: function(type, elem_obj) {
+		_triggerElementDialogue: function(type, elem_obj, edit=false, options="" ) {
 			var headerContent= elem_obj.element_thumb().title
 			var formcontent = Y.Node.create('<div class="element-form-dialogue"></div>');
 
 			require(['jquery', 'core/fragment'], function($, Fragment) {
 				// alert(self.contextid)
-				Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type } ).then((html, js) => {
+				Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type, formdata: options} ).then((html, js) => {
 					formcontent.setHTML(html);
+					if (formcontent.all("form.mform").length == 0) {
+						THIS._convertFormToCode( elem_obj, {}, edit );
+					}
+
 					formcontent.all("form.mform").each(function(form) {
 						console.log(form);
 						form.on('submit', function(e) {
@@ -411,7 +524,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 							var formid = e.target.get('id');
 							var data = $('#'+formid).serializeArray();
 							console.log(data);
-							THIS._convertFormToCode( elem_obj, data );
+							THIS._convertFormToCode( elem_obj, data, edit );
 						}, SELECTORS.ELEMENTFORM, THIS );
 					});
 
@@ -425,47 +538,83 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		/**
 		 * Generate shortcode from the element form options,
 		 */
-		 _convertFormToCode: function( elem_obj, formdata, add=true ) {
+		 _convertFormToCode: function( elem_obj, formdata, editUid=false ) {
 			var uid = THIS._generate_uid();
 			var element = elem_obj.element_thumb().id;
 			var visualData = {};
 			var params = ' type="'+ element +'"';
 			params = ' id="'+uid+'"';
+			var removeparams = ['_qf__builder_element_'+element,'sesskey','id'];
 			formdata.forEach(function(data) {
-				params += ' '+ data.name + '="'+ data.value+'"';
-				visualData[data.name] = data.value;
+				if ( !(removeparams.includes(data.name)) ) {
+					params += ' '+ data.name + '="'+ data.value+'"';
+					visualData[data.name] = data.value;
+				}
 			})
 			shortcode = '['+ CODEKEY +':element="'+element+'" '+ params +'][/'+ CODEKEY +']';
 			// Add shortcode on codeslist.
 			// $(SELECTORS.CODESLIST).append(shortcode);
 			// Add selements visual output for userinterface.
             // console.log(THIS._rendertemplate( elem_obj.element_output()));
-			var visualcontent = THIS._render_visual_content(element, uid, elem_obj, params, visualData);
+			var visualcontent = THIS._render_visual_content(element, uid, elem_obj, JSON.stringify(visualData), visualData);
 			visualcontent.shortcode = shortcode;
-			this._update_visual_content(visualcontent);
-			
+			this._update_visual_content(visualcontent, editUid);
+
 			ELEMENTS_DIALOGUE.hide();
 			BUILDER_DIALOGUE.focus();
 		},
 
-		
-		_render_visual_content: function(element, uid, elem_obj, shortcode, params, visualData ) {
+
+		_render_visual_content: function(element, uid, elem_obj, params, visualData ) {
+			console.log(params);
 			var visualcontent = {
 				output: THIS._rendertemplate( elem_obj.element_output(), visualData ).get('outerHTML'),
 				id: element,
+				uid: uid,
 				BUILDERITEMTOPTIONS: THIS._rendertemplate( TEMPLATES.BUILDERITEMTOPTIONS, { id : element, uid: uid, params: params } ).get('outerHTML'),
 			};
 			return visualcontent;
 		},
 
-		_update_visual_content: function(visualcontent) {
+		_update_visual_content: function(visualcontent, edit=false) {
 			console.log(visualcontent);
-			visual_output.one(SELECTORS.ELEMENTADDED).append( THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent ) );
+			var html = THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualcontent );
+			if (edit) {
+				console.log(edit);
+				Y.one('#'+edit).replace(html);
+			} else {
+				visual_output.one(SELECTORS.ELEMENTADDED).append( html );
+			}
+			
+			self._updateShortCodeList();
+		},
+
+		_updateShortCodeList: function() {
+			var codes = '';
+			Y.all(SELECTORS.ELEMENTSHORTCODE).each(function(element) {
+				console.log(element);
+				codes += element.get('value');
+			});
+			console.log(SELECTORS.ELEMENTSHORTCODE);;
+			Y.one(SELECTORS.CODESLIST).setHTML(codes);
+		},
+
+		_initDragDrop: function() {
+			M.atto_lmsace.dragdrop_reorder();
+			/* var dd = new Y.DD.Drag({
+				node: SELECTORS.ELEMENTITEM
+			});
+
+			var drop = new Y.DD.Drop({
+				node: SELECTORS.ELEMENTADDED
+			}); */
 		},
 
 		_generate_uid: function() {
 			return 'yui_' + Date.now();
-		},       
+		},
+
+
 
 		/**
 		 * Update the dialogue body content.
@@ -489,7 +638,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					var elementtemplate = this_obj._rendertemplate( TEMPLATES.THUMBBOX, element_thumb );
 					elem_obj.element_event_register( elementtemplate );
 					THUMBLIST.append( elementtemplate );
-					
+
 					ELEMENTS[ element.toLowerCase() ] = Object.getPrototypeOf(elem_obj);
 					// console.log(ELEMENTS);
 				}
@@ -518,7 +667,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		},
 
-		
+
 
 		_insert_builder_content: function() {
 			var codelist = $(SELECTORS.CODESLIST).html();
@@ -536,7 +685,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			} else {
 				host.setSelection(this._selected_point);
 			}
-			
+
 			// Focus on the previous selection.
 			codelist = '[LMSACEBUILDER]' + codelist + '[/LMSACEBUILDER]';
 			host.insertContentAtFocusPoint(codelist);
@@ -557,4 +706,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 	});
 
 
-}, '@VERSION@', {"requires": ["moodle-editor_atto-plugin", "acebuilder_element_header"]});
+	
+
+	
+
+}, '@VERSION@', {"requires": ["moodle-core-dragdrop", "moodle-editor_atto-plugin", "acebuilder_element_header"]});
