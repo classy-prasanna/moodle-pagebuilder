@@ -7,7 +7,7 @@ if (!function_exists('atto_lmsace_params_for_js')) {
 		global $PAGE, $CFG;
 		$context = $options['context'];
 		if (!$context) {
-			$context = context_system::instance();
+			$context = $PAGE->context;
 		}
 
 		$plugins = [

@@ -29,6 +29,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		SAVELAYOUT: 'save_layout',
 		CANCELLAYOUT: 'cancel_layout',
         EDITITEM: 'edit_element_item',
+		DELETEITEM: 'delete_element_item',
 		ELEMENTSHORTCODE: 'element-shortcode',
 		ELEMENTITEM: 'lmsace-builder-item',
 		VISUALTAB: 'visual-tab',
@@ -46,6 +47,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		SAVELAYOUT: '#' + CSS_ATTR.SAVELAYOUT,
 		CANCELLAYOUT: '#' + CSS_ATTR.CANCELLAYOUT,
         EDITITEM: '[data-func="'+ CSS_ATTR.EDITITEM +'"]',
+		DELETEITEM: '[data-func="'+ CSS_ATTR.DELETEITEM +'"]',
 		ELEMENTSHORTCODE: 'input[name="'+ CSS_ATTR.ELEMENTSHORTCODE+'"]',
 		ELEMENTITEM: '.' + CSS_ATTR.ELEMENTITEM,
 		EDITINGMOVE: '.editing_move',
@@ -260,6 +262,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
         // #1.
 		initializer: function() {
+
+		
 			this._host = this.get('host');
 			this.addButton({
 				title: 'pluginname',
@@ -307,7 +311,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 			var bodycontent = codeslist = null;
 			var visualUpdated = false;
-			this.contextid = this.get('contextid');
+
+			if (self.contextid == null) {
+				this.contextid = this.get('contextid');
+			}
 
 			this._loadAllElements();
 
@@ -372,6 +379,12 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
                 dataset = this.get('dataset');
             }, SELECTORS.EDITITEM);
 
+			visual_output.delegate('click', function(e) {
+				var uid = e.currentTarget.getAttribute('data-codeuid');	
+				Y.one(".lmsace-builder-item#"+uid).remove();
+                self._updateShortCodeList();
+            }, SELECTORS.DELETEITEM);
+
 			
 
 			return visual_output;
@@ -406,12 +419,11 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 						visualparams.uid = uid;
 						visualparams.shortcode = elementslist[0];
 						visualcontent += THIS._rendertemplate( TEMPLATES.ELEMENT_ITEM_DIV, visualparams ).get('outerHTML');
-						
 					}
 				}
 				this.build_dialogue_body(shortcodes);
 				visual_output.one(SELECTORS.ELEMENTADDED).append(visualcontent);
-				
+
 				// Update the shortcodes in the shortcode list.
 				$(SELECTORS.CODESLIST).val(shortcodes);
 
@@ -509,9 +521,9 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			var headerContent= elem_obj.element_thumb().title
 			var formcontent = Y.Node.create('<div class="element-form-dialogue"></div>');
 
-			require(['jquery', 'core/fragment'], function($, Fragment) {
+			require(['jquery', 'core/fragment', 'core/templates'], function($, Fragment, Templates) {
 				// alert(self.contextid)
-				Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type, formdata: options} ).then((html, js) => {
+				Fragment.loadFragment('atto_lmsace', 'getform', self.contextid, {element: type, formdata: options} ).then((html, newJS) => {
 					formcontent.setHTML(html);
 					if (formcontent.all("form.mform").length == 0) {
 						THIS._convertFormToCode( elem_obj, {}, edit );
@@ -523,7 +535,6 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 							e.preventDefault();
 							var formid = e.target.get('id');
 							var data = $('#'+formid).serializeArray();
-							console.log(data);
 							THIS._convertFormToCode( elem_obj, data, edit );
 						}, SELECTORS.ELEMENTFORM, THIS );
 					});
@@ -532,6 +543,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 						.set('bodyContent', formcontent)
 						.set('headerContent', headerContent)
 						.show();
+					Templates.runTemplateJS(newJS);
 				})
 			})
 		},
@@ -539,13 +551,18 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		 * Generate shortcode from the element form options,
 		 */
 		 _convertFormToCode: function( elem_obj, formdata, editUid=false ) {
+
 			var uid = THIS._generate_uid();
 			var element = elem_obj.element_thumb().id;
 			var visualData = {};
 			var params = ' type="'+ element +'"';
 			params = ' id="'+uid+'"';
 			var removeparams = ['_qf__builder_element_'+element,'sesskey','id'];
+			
 			formdata.forEach(function(data) {
+			 	if (data.name.includes('[')) {
+					data.name = data.name.replace('[', '_').replace(']', '');
+				}
 				if ( !(removeparams.includes(data.name)) ) {
 					params += ' '+ data.name + '="'+ data.value+'"';
 					visualData[data.name] = data.value;
