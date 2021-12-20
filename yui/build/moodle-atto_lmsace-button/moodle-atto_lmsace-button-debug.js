@@ -1,6 +1,8 @@
 YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
-	var COMPONENT = 'atto_lmsace',
+	"use strict"
+
+		var COMPONENT = 'atto_lmsace',
 
 	row_visual = '<div class="visual-content"> Plus test</div> ',
 
@@ -260,6 +262,8 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		contextid: null,
 
+		host: null,
+
         // #1.
 		initializer: function() {
 
@@ -309,8 +313,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
          */
 		show_builder: function() {
 
-			var bodycontent = codeslist = null;
+			var bodycontent = null, 
+			codeslist = null;
 			var visualUpdated = false;
+			
 
 			if (self.contextid == null) {
 				this.contextid = this.get('contextid');
@@ -354,8 +360,20 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 			ELEMENTS_DIALOGUE = this.getDialogue({
 				headerContent: 'Elements list', // M.util.get_string('builderheading', component).
 				width: '50%',
-				focusAfterHide: null
+				focusOnPreviousTargetAfterHide: true,
+				focusAfterHide: false,
+				
 			});
+
+			ELEMENTS_DIALOGUE.after("visibleChange", function(e) {
+				if (!ELEMENTS_DIALOGUE.get('visible')) {
+					// ELEMENTS_DIALOGUE.destroy(true);
+					console.log(window);
+					// BUILDER_DIALOGUE.focus();
+					// this = null;
+				}
+			});
+
 			this._registerformfields();
 			self._initDragDrop();
 		},
@@ -363,7 +381,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		build_dialogue_body: function(codeslist='') {
 			var funcobj = this;
-            option = {codelist: codeslist};
+            var option = {codelist: codeslist};
 			visual_output = funcobj._rendertemplate( TEMPLATES.VISUALLAYOUT, option );
             // Register add element icon event.
             // Display the element list when the add element clicked.
@@ -380,12 +398,10 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
             }, SELECTORS.EDITITEM);
 
 			visual_output.delegate('click', function(e) {
-				var uid = e.currentTarget.getAttribute('data-codeuid');	
+				var uid = e.currentTarget.getAttribute('data-codeuid');
 				Y.one(".lmsace-builder-item#"+uid).remove();
                 self._updateShortCodeList();
             }, SELECTORS.DELETEITEM);
-
-			
 
 			return visual_output;
 		},
@@ -433,7 +449,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 
 		_rendertemplate: function(html, option=null) {
 			var template = Y.Handlebars.compile(html);
-			config = Y.merge({
+			var config = Y.merge({
 				CSS_ATTR : CSS_ATTR,
 				SELECTORS: SELECTORS,
 				COMPONENT: COMPONENT,
@@ -469,7 +485,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		_registerformfields: function() {
 			// console.log(TEMPLATES.FORM_FIELDS);
 			for ( var key in TEMPLATES.FORM_FIELDS) {
-				field = TEMPLATES.FORM_FIELDS[key];
+				var field = TEMPLATES.FORM_FIELDS[key];
 				Y.Handlebars.registerPartial(key, field);
 			}
 
@@ -568,7 +584,7 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					visualData[data.name] = data.value;
 				}
 			})
-			shortcode = '['+ CODEKEY +':element="'+element+'" '+ params +'][/'+ CODEKEY +']';
+			var shortcode = '['+ CODEKEY +':element="'+element+'" '+ params +'][/'+ CODEKEY +']';
 			// Add shortcode on codeslist.
 			// $(SELECTORS.CODESLIST).append(shortcode);
 			// Add selements visual output for userinterface.
@@ -674,12 +690,19 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 					headerContent: 'Elements list', // M.util.get_string('builderheading', component).
 					width: '50%',
 					bodyContent: THUMBLIST,
-					focusAfterHide: null
+					focusAfterHide: false,
+					focusOnPreviousTargetAfterHide: true,
 				});
+
+				ELEMENTS_DIALOGUE.on('hide', function() {
+					this.destroy();
+					alert();
+				})
 			} else {
 				ELEMENTS_DIALOGUE.set('bodyContent', THUMBLIST);
 				ELEMENTS_DIALOGUE.set('headerContent', 'Elements List');
 			}
+
 			ELEMENTS_DIALOGUE.show();
 
 		},
@@ -689,24 +712,25 @@ YUI.add('moodle-atto_lmsace-button', function (Y, NAME) {
 		_insert_builder_content: function() {
 			var codelist = $(SELECTORS.CODESLIST).html();
 			console.log(codelist);
-			var host = this.get('host');
+			
 			BUILDER_DIALOGUE.hide();
-			host.focus();
+			this._host.focus();
 			this.editor.focus();
+			alert(this.editor);
 			// host.restoreSelection();
-			host.restoreSelection();
+			this._host.restoreSelection();
 			if (this.selectedNode) {
-				var selection = host.getSelectionFromNode(this.selectedNode);
+				var selection = this._host.getSelectionFromNode(this.selectedNode);
 				// console.log(selection);
 				this.get('host').setSelection(selection);
 			} else {
-				host.setSelection(this._selected_point);
+				this._host.setSelection(this._selected_point);
 			}
 
 			// Focus on the previous selection.
 			codelist = '[LMSACEBUILDER]' + codelist + '[/LMSACEBUILDER]';
-			host.insertContentAtFocusPoint(codelist);
-			this.markUpdated();
+			this._host.insertContentAtFocusPoint(codelist);
+			// this.markUpdated();
 		}
 
 	}, {
