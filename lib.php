@@ -14,8 +14,10 @@ if (!function_exists('atto_lmsace_params_for_js')) {
 			'Row', 'Column'
 		];
 
-		require_once($CFG->dirroot.'/local/acetools/addons/builder/lib.php');
-		$plugins = aceaddon_builder_load_elements();
+		if ( array_key_exists('aceaddon_builder', \core_component::get_plugin_list('local'))) {
+			require_once($CFG->dirroot.'/local/acetools/addons/builder/lib.php');
+			$plugins = aceaddon_builder_load_elements();
+		}
 
 		return ['contextid' => $context->id, 'elements' => $plugins ];
 	}
